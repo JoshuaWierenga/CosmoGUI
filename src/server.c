@@ -49,28 +49,6 @@ static int openfifoserver(char *path, mode_t mode, int oflag) {
   return fd;
 }
 
-/* Process:
-   Server: CALL_ADD
-   Client: CLIENT_REQUEST_PARAM
-   Server: a
-   Client: CLIENT_REQUEST_PARAM
-   Server: b
-   Client: CLIENT_RESULT_READY
-   Server: SERVER_REQUEST_RESULT
-   Client: res
-   Server: SERVER_ACK */
-static int32_t add(int32_t a, int32_t b) {
-  int32_t res;
-  
-  simplerequesteventpair(sc_fd, cs_fd, CALL_ADD, CLIENT_REQUEST_PARAM);
-  sendvarexpected(sc_fd, cs_fd, (void *)&a, sizeof(a), CLIENT_REQUEST_PARAM);
-  sendvarexpected(sc_fd, cs_fd, (void *)&b, sizeof(b), CLIENT_RESULT_READY);
-  recvvarrequest(sc_fd, cs_fd, SERVER_REQUEST_RESULT, (void *)&res, sizeof(res));
-  sendevent(sc_fd, SERVER_ACK);
-  
-  return res;
-}
-
 int main() {
   puts("Starting server");
   
@@ -79,8 +57,7 @@ int main() {
 
   simplerequesteventpair(sc_fd, cs_fd, SERVER_INIT, CLIENT_INIT);
 
-  int32_t res = add(3, 5);
-  printf("3 + 5 = %" PRId32 "\n", res);
+  simplerequesteventpair(sc_fd, cs_fd, CALL_RAYLIB, CLIENT_ACK);
 
   simplerequesteventpair(sc_fd, cs_fd, SERVER_QUIT, CLIENT_ACK);
 

@@ -19,13 +19,12 @@ $(PREFIX)/%/:
 $(PREFIX)/bin/cosmo/server.com: src/server.c src/ipc.c $(CLIENTSERVERINCLUDES) | $(PREFIX)/bin/cosmo/
 	$(COSMOCC) -o $@ $(filter %.c,$^) -D _COSMO_SOURCE_ -D SERVER
 
-$(PREFIX)/bin/native/client: src/client.c src/ipc.c $(CLIENTSERVERINCLUDES) $(PREFIX)/include/dummy.h $(PREFIX)/lib/native/libdummy.a | $(PREFIX)/bin/native/
-	$(CC) -o $@ $(filter %.c,$^) -D CLIENT -I$(PREFIX)/include/ -L$(PREFIX)/lib/native/ -ldummy
+$(PREFIX)/bin/native/client: src/client.c src/ipc.c $(CLIENTSERVERINCLUDES) $(PREFIX)/include/raylib.h $(PREFIX)/lib/native/libraylib.a | $(PREFIX)/bin/native/
+	$(CC) -o $@ $(filter %.c,$^) -D CLIENT -I$(PREFIX)/include/ -L$(PREFIX)/lib/native/ -lraylib -lm
 
 
-$(PREFIX)/include/dummy.h: src/dummy/dummy.h | $(PREFIX)/include/
-	cp $< $@
+$(PREFIX)/include/raylib.h: third_party/raylib/src/raylib.h | $(PREFIX)/include/
+	cp --update $< $@
 
-$(PREFIX)/lib/native/libdummy.a: src/dummy/add.c src/dummy/dummy.h | $(PREFIX)/lib/native/
-	$(CC) -c -o $(PREFIX)/lib/native/libdummy.o $<
-	$(AR) rcs $@ $(PREFIX)/lib/native/libdummy.o
+$(PREFIX)/lib/native/libraylib.a: | $(PREFIX)/lib/native/
+	$(MAKE) -C third_party/raylib/src/ PLATFORM=PLATFORM_DESKTOP RAYLIB_RELEASE_PATH=../../../output/lib/native/

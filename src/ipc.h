@@ -10,7 +10,7 @@ typedef enum {
   SERVER_ACK,
   SERVER_QUIT,
   
-  CALL_ADD,
+  CALL_RAYLIB,
   
   CLIENT_INIT,
   CLIENT_REQUEST_PARAM,

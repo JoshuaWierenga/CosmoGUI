@@ -24,7 +24,7 @@ char *event_names[] = {
   "SERVER_ACK",
   "SERVER_EXIT",
   
-  "CALL_ADD",
+  "CALL_RAYLIB",
   
   "CLIENT_INIT",
   "CLIENT_REQUEST_PARAM",
@@ -80,6 +80,23 @@ void simpleresponseeventpair(int send_fd, int recv_fd, event recv_event, event s
   recveventexpected(recv_fd, recv_event);
   sendevent(send_fd, send_event);
 }
+
+// There are 6 kinds of data relevant to this system:
+// 1. Data that fits into a register. Use sendvar/recvvar.
+// 2. Structs/arrays of data that fit in registers. Use sendvar/recvvar after casting to an array.
+// 3. Structs/arrays of data containing pointers that can either be sent in peices or turned into
+//    a single long block of memory. Use sendvar/recvvar but need custom reconstruction at dest.
+//    If using a single long block of memory than pointers need to be redetermined using offsets.
+// 4. Structs/arrays of data containing pointers that cannot (easily) be turned into a single block
+//    of memory but the sender has full control of memory allocation. Use shared memory and then
+//    send a pointer with sendvar/recvvar.
+// 5. Structs/arrays of data containing pointers that cannot (easily) be turned into a single block
+//    of memory and the client does not have control of memory allocation but the server does not
+//    need to see or modify the data (only call other client provided functions on it). Store data
+//    in client as well as a pointer in a dynamic array and send the index via sendvar/recvvar.
+// 6. Structs/arrays of data containing pointers that cannot (easily) be turned into a single block
+//    of memory, the client does not have control of memory allocation and the server needs to see
+//    or modify the data. Good luck!
 
 void sendvar(int fd, void *var, size_t varlen) {
   printf("Sent var of length %zu\n", varlen);
