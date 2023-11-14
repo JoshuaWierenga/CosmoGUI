@@ -4,7 +4,8 @@ AR ?= ar
 
 PREFIX ?= output
 
-CLIENTSERVERINCLUDES = src/exitcodes.h src/ipc.h
+INCLUDES = src/exitcodes.h src/ipc.h $(PREFIX)/include/raylib.h
+INCLUDEPATHS = -I$(PREFIX)/include/
 
 .PHONY: build clean
 build: $(PREFIX)/bin/cosmo/server.com $(PREFIX)/bin/native/client
@@ -16,11 +17,11 @@ $(PREFIX)/%/:
 	mkdir -p $@
 
 
-$(PREFIX)/bin/cosmo/server.com: src/server.c src/ipc.c $(CLIENTSERVERINCLUDES) | $(PREFIX)/bin/cosmo/
-	$(COSMOCC) -o $@ $(filter %.c,$^) -D _COSMO_SOURCE_ -D SERVER
+$(PREFIX)/bin/cosmo/server.com: src/server.c src/ipc.c $(INCLUDES) | $(PREFIX)/bin/cosmo/
+	$(COSMOCC) -o $@ $(filter %.c,$^) -D_COSMO_SOURCE_ -DSERVER $(INCLUDEPATHS)
 
-$(PREFIX)/bin/native/client: src/client.c src/ipc.c $(CLIENTSERVERINCLUDES) $(PREFIX)/include/raylib.h $(PREFIX)/lib/native/libraylib.a | $(PREFIX)/bin/native/
-	$(CC) -o $@ $(filter %.c,$^) -D CLIENT -I$(PREFIX)/include/ -L$(PREFIX)/lib/native/ -lraylib -lm
+$(PREFIX)/bin/native/client: src/client.c src/ipc.c $(INCLUDES) $(PREFIX)/lib/native/libraylib.a | $(PREFIX)/bin/native/
+	$(CC) -o $@ $(filter %.c,$^) -DCLIENT $(INCLUDEPATHS) -L$(PREFIX)/lib/native/ -lraylib -lm
 
 
 $(PREFIX)/include/raylib.h: third_party/raylib/src/raylib.h | $(PREFIX)/include/
