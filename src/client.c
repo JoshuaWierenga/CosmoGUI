@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <raylib.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -129,7 +130,40 @@ static void handleRaylibDrawText(void) {
 
 int main(int argc, char **argv) {
   puts("Starting client");
-  fd = client_socket_fd;
+
+  // While windows binaries do inhert cosmo fds by their underlying handles, the fds do not match and
+  // so this manually inspects the _COSMO_FDS variable to get the required handle and its matching fd
+#ifdef _WIN32
+  fd = -1;
+
+  const char *fdspec;
+  if (!(fdspec = getenv("_COSMO_FDS"))) {
+    exit(CLIENT_ERROR);
+  }
+
+  while(fdspec) {
+    char *temp;
+    long long foundFd = strtol(fdspec, &temp, 10);
+    if (fdspec >= temp) break;
+    fdspec = temp + 1;
+
+    if (foundFd == clientSocketFd) {
+      intptr_t handle = (intptr_t)strtol(fdspec, &temp, 10);
+      if (fdspec >= temp) break;
+
+      fd = _open_osfhandle((intptr_t)handle, O_RDWR);
+      break;
+    }
+
+    fdspec = strchr(fdspec, ';') + 1;
+  }
+
+  if (fd == -1) {
+    exit(CLIENT_ERROR);
+  }
+#else
+  fd = clientSocketFd;
+#endif
 
   simple_response_event_pair(fd, SERVER_INIT, CLIENT_INIT);
 

@@ -22,10 +22,10 @@ const char *unexpectedEventMsg = "Server sent unexpected event";
 #error Need endpoint type
 #endif
 
-int client_socket_fd = 4;
+int clientSocketFd = 4;
 
 // Keep synced with event enum
-char *event_names[] = {
+char *eventNames[] = {
   "SERVER_INIT",
   "SERVER_REQUEST_RESULT",
   "SERVER_ACK",
@@ -67,7 +67,7 @@ char *event_names[] = {
 
 void send_event(int socketFd, event sendEvent) {
 #ifdef SHOW_EVENT_INFO
-  printf("%s sent %s\n", name, event_names[sendEvent]);
+  printf("%s sent %s\n", name, eventNames[sendEvent]);
 #endif
   ssize_t len = write(socketFd, &sendEvent, sizeof(sendEvent));
   if (len != sizeof(sendEvent)) {
@@ -91,7 +91,7 @@ event recv_event(int socketFd) {
   }
   
 #ifdef SHOW_EVENT_INFO
-  printf("%s received %s\n", name, event_names[recvEvent]);
+  printf("%s received %s\n", name, eventNames[recvEvent]);
 #endif
 
   return recvEvent;

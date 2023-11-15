@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-// Keep synced with event_names
+// Keep synced with eventNames
 typedef enum {
   SERVER_INIT,
   SERVER_REQUEST_RESULT,
@@ -46,9 +46,9 @@ extern const char *readWriteErrorMsg;
 extern const char *communicationErrorMsg;
 extern const char *unexpectedEventMsg;
 
-extern char *event_names[18];
+extern char *eventNames[18];
 
-extern int client_socket_fd;
+extern int clientSocketFd;
 
 void send_event(int socketFd, event sendEvent);
 

@@ -18,7 +18,7 @@
 int fd;
 extern char **environ;
 
-static pid_t open_client(int client_fd) {
+static pid_t open_client(int clientFd) {
   char *clientPath;
 #if defined(__COSMOPOLITAN__)
   if (IsLinux()) {
@@ -53,13 +53,13 @@ static pid_t open_client(int client_fd) {
     fprintf(stderr, "Error: %s\n", strerror(res));
     exit(CLIENT_ERROR);
   }
-  if (client_fd != client_socket_fd) {
-    res = posix_spawn_file_actions_adddup2(&actions, client_fd, client_socket_fd);
+  if (clientFd != clientSocketFd) {
+    res = posix_spawn_file_actions_adddup2(&actions, clientFd, clientSocketFd);
     if (res) {
       fprintf(stderr, "Error: %s\n", strerror(res));
       exit(CLIENT_ERROR);
     }
-    res = posix_spawn_file_actions_addclose(&actions, client_fd);
+    res = posix_spawn_file_actions_addclose(&actions, clientFd);
     if (res) {
       fprintf(stderr, "Error: %s\n", strerror(res));
       exit(CLIENT_ERROR);
@@ -68,6 +68,12 @@ static pid_t open_client(int client_fd) {
 
   pid_t pid;
   posix_spawn(&pid, actualPath, &actions, NULL, argv, environ);
+  if (res) {
+    fprintf(stderr, "Error: %s\n", strerror(res));
+    exit(CLIENT_ERROR);
+  }
+
+  res = posix_spawn_file_actions_destroy(&actions);
   if (res) {
     fprintf(stderr, "Error: %s\n", strerror(res));
     exit(CLIENT_ERROR);
