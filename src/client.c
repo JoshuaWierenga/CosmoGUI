@@ -11,7 +11,7 @@
 
 //#define SHOW_WRAPPER_DATA
 
-int fd;
+int fd = -1;
 
 /* Process:
    Server: CALL_RAYLIB_INITWINDOW
@@ -134,8 +134,6 @@ int main(int argc, char **argv) {
   // While windows binaries do inhert cosmo fds by their underlying handles, the fds do not match and
   // so this manually inspects the _COSMO_FDS variable to get the required handle and its matching fd
 #ifdef _WIN32
-  fd = -1;
-
   const char *fdspec;
   if (!(fdspec = getenv("_COSMO_FDS"))) {
     exit(CLIENT_ERROR);
@@ -143,15 +141,14 @@ int main(int argc, char **argv) {
 
   while(fdspec) {
     char *temp;
-    long long foundFd = strtol(fdspec, &temp, 10);
+    long long foundFd = strtoll(fdspec, &temp, 10);
     if (fdspec >= temp) break;
     fdspec = temp + 1;
 
     if (foundFd == clientSocketFd) {
-      intptr_t handle = (intptr_t)strtol(fdspec, &temp, 10);
+      intptr_t handle = (intptr_t)strtoll(fdspec, &temp, 10);
       if (fdspec >= temp) break;
-
-      fd = _open_osfhandle((intptr_t)handle, O_RDWR);
+      fd = _open_osfhandle(handle, O_RDWR);
       break;
     }
 
