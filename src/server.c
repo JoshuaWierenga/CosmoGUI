@@ -1,54 +1,83 @@
 #ifdef __COSMOPOLITAN__
 #include <cosmo.h>
 #endif
-#include <errno.h>
-#include <fcntl.h>
 #include <raylib.h>
-#include <sys/stat.h>
+#include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <sys/socket.h>
 
 #include "exitcodes.h"
 #include "ipc.h"
 
-#ifdef __COSMOPOLITAN__
-int32_t sys_mknod(const char *, uint32_t, uint64_t);
-#endif
+// TODO: Detect ctrl+c and shutdown raylib
+// TODO: Embed clients in server zip
 
-int sc_fd, cs_fd;
+int fd;
+extern char **environ;
 
-static int openfifoserver(char *path, mode_t mode, int oflag) {
-  if (unlink(path) != 0 && errno != ENOENT) {
-    perror("Error");
-    exit(-1);
-  }
-
-#ifdef __COSMOPOLITAN__
-  if (IsWindows()) {
-    // TODO: Fix, the plan is to use unamed pipes so this may
-    // not end up mattering
-    exit(-1);
+static pid_t open_client(int client_fd) {
+  char *clientPath;
+#if defined(__COSMOPOLITAN__)
+  if (IsLinux()) {
+    clientPath = "output/bin/linux/client";
+  } else if (IsWindows()) {
+    clientPath = "output/bin/windows/client.exe";
   } else {
-    // Cosmo mknod does not allow S_IFIFO
-    sys_mknod(path, mode | S_IFIFO, 0);
+    fprintf(stderr, "OS not supported");
+    exit(CLIENT_ERROR);
   }
+#elif defined(__linux__)
+  clientPath = "output/bin/linux/client";
+#elif defined(_WIN32)
+  clientPath = "output/bin/windows/client.exe";
 #else
-  if (mkfifo(path, mode) != 0) {
-    perror("Error");
-    exit(-1);
-  }
+#error OS not supported
 #endif
 
-  int fd = open(path, oflag);
-  if (fd < 0) {
-    perror("Error");
-    exit(-1);
+#if defined(__COSMOPOLITAN__) || defined(__linux__)
+  char buf[PATH_MAX + 1];
+  char *actualPath = realpath(clientPath, buf);
+  char *argv[] = {actualPath, NULL};
+
+  posix_spawn_file_actions_t actions;
+  int res = posix_spawn_file_actions_init(&actions);
+  if (res) {
+    fprintf(stderr, "Error: %s\n", strerror(res));
+    exit(CLIENT_ERROR);
+  }
+  res = posix_spawn_file_actions_addclose(&actions, fd);
+  if (res) {
+    fprintf(stderr, "Error: %s\n", strerror(res));
+    exit(CLIENT_ERROR);
+  }
+  if (client_fd != client_socket_fd) {
+    res = posix_spawn_file_actions_adddup2(&actions, client_fd, client_socket_fd);
+    if (res) {
+      fprintf(stderr, "Error: %s\n", strerror(res));
+      exit(CLIENT_ERROR);
+    }
+    res = posix_spawn_file_actions_addclose(&actions, client_fd);
+    if (res) {
+      fprintf(stderr, "Error: %s\n", strerror(res));
+      exit(CLIENT_ERROR);
+    }
   }
 
-  return fd;
+  pid_t pid;
+  posix_spawn(&pid, actualPath, &actions, NULL, argv, environ);
+  if (res) {
+    fprintf(stderr, "Error: %s\n", strerror(res));
+    exit(CLIENT_ERROR);
+  }
+
+  return pid;
+// Todo use CreateProcess or something for windows
+#else
+#error OS not supported
+#endif
 }
 
 /* Process:
@@ -59,12 +88,12 @@ static int openfifoserver(char *path, mode_t mode, int oflag) {
    Server: {wdith, height, title}
    Client: CLIENT_ACK */
 void InitWindow(int width, int height, const char *title) {
-  simplerequesteventpair(sc_fd, cs_fd, CALL_RAYLIB_INITWINDOW, CLIENT_REQUEST_SIZE);
+  simple_request_event_pair(fd, CALL_RAYLIB_INITWINDOW, CLIENT_REQUEST_SIZE);
 
   size_t titlelen = strlen(title) + 1;
   size_t datalen = sizeof(width) + sizeof(height) + titlelen;
 
-  senddataexpected(sc_fd, cs_fd, &datalen, sizeof(datalen), CLIENT_REQUEST_PARAM);
+  send_data_expected(fd, &datalen, sizeof(datalen), CLIENT_REQUEST_PARAM);
 
   char data[datalen];
   char *pData = data;
@@ -72,7 +101,7 @@ void InitWindow(int width, int height, const char *title) {
   memcpy(pData += sizeof(width), &height, sizeof(height));
   memcpy(pData += sizeof(height), title, titlelen);
 
-  senddataexpected(sc_fd, cs_fd, data, sizeof(data), CLIENT_ACK);
+  send_data_expected(fd, data, sizeof(data), CLIENT_ACK);
 }
 
 /* Process:
@@ -82,11 +111,11 @@ void InitWindow(int width, int height, const char *title) {
    Client: result
    Server: SERVER_ACK */
 bool WindowShouldClose(void) {
-  simplerequesteventpair(sc_fd, cs_fd, CALL_RAYLIB_WINDOWSHOULDCLOSE, CLIENT_RESULT_READY);
+  simple_request_event_pair(fd, CALL_RAYLIB_WINDOWSHOULDCLOSE, CLIENT_RESULT_READY);
 
   bool result;
-  recvdatarequest(sc_fd, cs_fd, SERVER_REQUEST_RESULT, (void **)&result, sizeof(result));
-  sendevent(sc_fd, SERVER_ACK);
+  recv_data_request(fd, SERVER_REQUEST_RESULT, (void **)&result, sizeof(result));
+  send_event(fd, SERVER_ACK);
 
   return result;
 }
@@ -95,8 +124,8 @@ bool WindowShouldClose(void) {
    Server: CALL_RAYLIB_CLOSEWINDOW
    Client: CLIENT_ACK */
 // Renamed to avoid conflict with windows' CloseWindow
-void RLCloseWindow(void) {
-  simplerequesteventpair(sc_fd, cs_fd, CALL_RAYLIB_CLOSEWINDOW, CLIENT_ACK);
+static void RLCloseWindow(void) {
+  simple_request_event_pair(fd, CALL_RAYLIB_CLOSEWINDOW, CLIENT_ACK);
 }
 
 /* Process:
@@ -105,22 +134,22 @@ void RLCloseWindow(void) {
    Server: color
    Client: CLIENT_ACK */
 void ClearBackground(Color color) {
-  simplerequesteventpair(sc_fd, cs_fd, CALL_RAYLIB_CLEARBACKGROUND, CLIENT_REQUEST_PARAM);
-  senddataexpected(sc_fd, cs_fd, &color, sizeof(color), CLIENT_ACK);
+  simple_request_event_pair(fd, CALL_RAYLIB_CLEARBACKGROUND, CLIENT_REQUEST_PARAM);
+  send_data_expected(fd, &color, sizeof(color), CLIENT_ACK);
 }
 
 /* Process:
    Server: CALL_RAYLIB_BEGINDRAWING
    Client: CLIENT_ACK */
 void BeginDrawing(void) {
-  simplerequesteventpair(sc_fd, cs_fd, CALL_RAYLIB_BEGINDRAWING, CLIENT_ACK);
+  simple_request_event_pair(fd, CALL_RAYLIB_BEGINDRAWING, CLIENT_ACK);
 }
 
 /* Process:
    Server: CALL_RAYLIB_BEGINDRAWING
    Client: CLIENT_ACK */
 void EndDrawing(void) {
-  simplerequesteventpair(sc_fd, cs_fd, CALL_RAYLIB_ENDDRAWING, CLIENT_ACK);
+  simple_request_event_pair(fd, CALL_RAYLIB_ENDDRAWING, CLIENT_ACK);
 }
 
 /* Process:
@@ -129,8 +158,8 @@ void EndDrawing(void) {
    Server: fps
    Client: CLIENT_ACK */
 void SetTargetFPS(int fps) {
-  simplerequesteventpair(sc_fd, cs_fd, CALL_RAYLIB_SETTARGETFPS, CLIENT_REQUEST_PARAM);
-  senddataexpected(sc_fd, cs_fd, &fps, sizeof(fps), CLIENT_ACK);
+  simple_request_event_pair(fd, CALL_RAYLIB_SETTARGETFPS, CLIENT_REQUEST_PARAM);
+  send_data_expected(fd, &fps, sizeof(fps), CLIENT_ACK);
 }
 
 /* Process:
@@ -141,13 +170,13 @@ void SetTargetFPS(int fps) {
    Server: {text, posX, posY, floatSize, color}
    Client: CLIENT_ACK */
 // Renamed to avoid conflict with windows' DrawText
-void RLDrawText(const char *text, int posX, int posY, int fontSize, Color color) {
-  simplerequesteventpair(sc_fd, cs_fd, CALL_RAYLIB_DRAWTEXT, CLIENT_REQUEST_SIZE);
+static void RLDrawText(const char *text, int posX, int posY, int fontSize, Color color) {
+  simple_request_event_pair(fd, CALL_RAYLIB_DRAWTEXT, CLIENT_REQUEST_SIZE);
 
   size_t textlen = strlen(text) + 1;
   size_t datalen = textlen + sizeof(posX) + sizeof(posY) + sizeof(fontSize) + sizeof(color);
 
-  senddataexpected(sc_fd, cs_fd, &datalen, sizeof(datalen), CLIENT_REQUEST_PARAM);
+  send_data_expected(fd, &datalen, sizeof(datalen), CLIENT_REQUEST_PARAM);
 
   char data[datalen];
   char *pData = data;
@@ -157,7 +186,7 @@ void RLDrawText(const char *text, int posX, int posY, int fontSize, Color color)
   memcpy(pData += sizeof(posY), &fontSize, sizeof(fontSize));
   memcpy(pData += sizeof(fontSize), &color, sizeof(color));
 
-  senddataexpected(sc_fd, cs_fd, data, sizeof(data), CLIENT_ACK);
+  send_data_expected(fd, data, sizeof(data), CLIENT_ACK);
 }
 
 
@@ -223,19 +252,28 @@ void runRaylib(void) {
 int main(void) {
   puts("Starting server");
 
-  sc_fd = openfifoserver("/tmp/cosmoguisc", 0600, O_WRONLY);
-  cs_fd = openfifoserver("/tmp/cosmoguics", 0600, O_RDONLY);
+  int fds[2];
+  socketpair(PF_LOCAL, SOCK_STREAM, 0, fds);
 
-  simplerequesteventpair(sc_fd, cs_fd, SERVER_INIT, CLIENT_INIT);
+  fd = fds[0];
+  pid_t client = open_client(fds[1]);
+  close(fds[1]);
+
+  simple_request_event_pair(fd, SERVER_INIT, CLIENT_INIT);
 
   runRaylib();
 
-  simplerequesteventpair(sc_fd, cs_fd, SERVER_QUIT, CLIENT_ACK);
+  simple_request_event_pair(fd, SERVER_QUIT, CLIENT_ACK);
+
+  int res = waitpid(client, NULL, 0);
+  if (res == -1) {
+    perror("Error");
+    exit(CLIENT_ERROR);
+  }
 
   puts("Stopping server");
 
-  close(sc_fd);
-  close(cs_fd);
+  close(fd);
 
   return 0;
 }

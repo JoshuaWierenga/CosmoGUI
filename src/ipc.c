@@ -5,17 +5,24 @@
 #include "exitcodes.h"
 #include "ipc.h"
 
+//#define SHOW_EVENT_INFO
+//#define SHOW_READ_WRITE_SIZES
+
 #if defined(SERVER)
+const char *name = "Server";
 const char *readWriteErrorMsg = "Unable to communicate with client";
 const char *communicationErrorMsg = "Client is not communicating correctly";
 const char *unexpectedEventMsg = "Client sent unexpected event";
 #elif defined(CLIENT)
+const char *name = "Client";
 const char *readWriteErrorMsg = "Unable to communicate with server";
 const char *communicationErrorMsg = "Server is not communicating correctly";
 const char *unexpectedEventMsg = "Server sent unexpected event";
 #else
 #error Need endpoint type
 #endif
+
+int client_socket_fd = 4;
 
 // Keep synced with event enum
 char *event_names[] = {
@@ -58,50 +65,55 @@ char *event_names[] = {
 
 // TODO: Replace all exits with returns so that the server/client can report the error
 
-void sendevent(int fd, event ev) {
-  printf("Sent %s\n", event_names[ev]);
-  ssize_t len = write(fd, &ev, sizeof(ev));
-  if (len != sizeof(ev)) {
+void send_event(int socketFd, event sendEvent) {
+#ifdef SHOW_EVENT_INFO
+  printf("%s sent %s\n", name, event_names[sendEvent]);
+#endif
+  ssize_t len = write(socketFd, &sendEvent, sizeof(sendEvent));
+  if (len != sizeof(sendEvent)) {
     perror(readWriteErrorMsg);
     exit(READ_WRITE_ERROR);
   }
 }
 
 
-event recvevent(int fd) {
-  event ev;
-  ssize_t len = read(fd, &ev, sizeof(ev));
+event recv_event(int socketFd) {
+  event recvEvent;
+  ssize_t len = read(socketFd, &recvEvent, sizeof(recvEvent));
   if (len == -1) {
     perror(readWriteErrorMsg);
     exit(READ_WRITE_ERROR);
   }
 
-  if (len != sizeof(ev)) {
+  if (len != sizeof(recvEvent)) {
     puts(communicationErrorMsg);
     exit(COMMUNICATION_ERROR);
   }
-  printf("Received %s\n", event_names[ev]);
+  
+#ifdef SHOW_EVENT_INFO
+  printf("%s received %s\n", name, event_names[recvEvent]);
+#endif
 
-  return ev;
+  return recvEvent;
 }
 
-void recveventexpected(int fd, event expected) {
-  event ev = recvevent(fd);
-  if (ev != expected) {
+void recv_event_expected(int socketFd, event recvEvent) {
+  event ev = recv_event(socketFd);
+  if (ev != recvEvent) {
     puts(unexpectedEventMsg);
     exit(UNEXPECTED_EVENT);
   }
 }
 
 
-void simplerequesteventpair(int send_fd, int recv_fd, event send_event, event recv_event) {
-  sendevent(send_fd, send_event);
-  recveventexpected(recv_fd, recv_event);
+void simple_request_event_pair(int socketFd, event sendEvent, event recvEvent) {
+  send_event(socketFd, sendEvent);
+  recv_event_expected(socketFd, recvEvent);
 }
 
-void simpleresponseeventpair(int send_fd, int recv_fd, event recv_event, event send_event) {
-  recveventexpected(recv_fd, recv_event);
-  sendevent(send_fd, send_event);
+void simple_response_event_pair(int socketFd, event recvEvent, event sendEvent) {
+  recv_event_expected(socketFd, recvEvent);
+  send_event(socketFd, sendEvent);
 }
 
 // There are 6 kinds of data relevant to this system:
@@ -121,36 +133,42 @@ void simpleresponseeventpair(int send_fd, int recv_fd, event recv_event, event s
 //    of memory, the client does not have control of memory allocation and the server needs to see
 //    or modify the data. Good luck!
 
-void senddata(int fd, void *var, size_t varlen) {
-  printf("Sent %zu bytes\n", varlen);
-  ssize_t writelen = write(fd, var, varlen);
-  if (writelen != varlen) {
+void send_data(int socketFd, void *data, size_t dataLen) {
+  ssize_t writeLen = write(socketFd, data, dataLen);
+  if (writeLen != dataLen) {
     perror(readWriteErrorMsg);
     exit(READ_WRITE_ERROR);
   }
+  
+#ifdef SHOW_READ_WRITE_SIZES
+  printf("%s sent %zu bytes\n", name, dataLen);
+#endif
 }
 
-void senddataexpected(int send_fd, int recv_fd, void *var, size_t varlen, event expected) {
-  senddata(send_fd, var, varlen);
-  recveventexpected(recv_fd, expected);
+void send_data_expected(int socketFd, void *data, size_t dataLen, event recvEvent) {
+  send_data(socketFd, data, dataLen);
+  recv_event_expected(socketFd, recvEvent);
 }
 
 
-void recvdata(int recv_fd, void **dest, size_t destlen) {
-  ssize_t readlen = read(recv_fd, dest, destlen);
-  if (readlen == -1) {
+void recv_data(int socketFd, void **data, size_t dataLen) {
+  ssize_t readLen = read(socketFd, data, dataLen);
+  if (readLen == -1) {
     perror(readWriteErrorMsg);
     exit(READ_WRITE_ERROR);
   }
 
-  if (readlen != destlen) {
+  if (readLen != dataLen) {
     puts(communicationErrorMsg);
     exit(COMMUNICATION_ERROR);
   }
-  printf("Received %zu bytes\n", readlen);
+
+#ifdef SHOW_READ_WRITE_SIZES
+  printf("%s received %zu bytes\n", name, readLen);
+#endif
 }
 
-void recvdatarequest(int send_fd, int recv_fd, event request, void **dest, size_t len) {
-  sendevent(send_fd, request);
-  recvdata(recv_fd, dest, len);
+void recv_data_request(int socketFd, event sendEvent, void **data, size_t dataLen) {
+  send_event(socketFd, sendEvent);
+  recv_data(socketFd, data, dataLen);
 }

@@ -1,5 +1,3 @@
-#include <fcntl.h>
-#include <inttypes.h>
 #include <raylib.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -10,16 +8,9 @@
 #include "exitcodes.h"
 #include "ipc.h"
 
-int sc_fd, cs_fd;
+//#define SHOW_WRAPPER_DATA
 
-static int openfifoclient(char *path, int oflag) {
-  int fd = open(path, oflag);
-  if (fd < 0) {
-    perror("Error");
-    exit(-1);
-  }
-  return fd;
-}
+int fd;
 
 /* Process:
    Server: CALL_RAYLIB_INITWINDOW
@@ -28,23 +19,26 @@ static int openfifoclient(char *path, int oflag) {
    Client: CLIENT_REQUEST_PARAM
    Server: {wdith, height, title}
    Client: CLIENT_ACK */
-static void handleRaylibInitWindowEvent(void) {
+static void handleRaylibInitWindow(void) {
   size_t datalen;
-  recvdatarequest(cs_fd, sc_fd, CLIENT_REQUEST_SIZE, (void **)&datalen, sizeof(datalen));
-  printf("datalen: %zu\n", datalen);
+  recv_data_request(fd, CLIENT_REQUEST_SIZE, (void **)&datalen, sizeof(datalen));
+  //printf("datalen: %zu\n", datalen);
 
   char data[datalen];
   char *pData = data;
-  recvdatarequest(cs_fd, sc_fd, CLIENT_REQUEST_PARAM, (void **)&data, sizeof(data));
+  recv_data_request(fd, CLIENT_REQUEST_PARAM, (void **)&data, sizeof(data));
 
   int width, height;
   memcpy(&width, pData, sizeof(width));
   memcpy(&height, pData += sizeof(width), sizeof(height));
   char *title = pData += sizeof(height);
-  printf("width: %i, height: %i, title: \"%s\"\n", width, height, title);
+
+#ifdef SHOW_WRAPPER_DATA
+  printf("InitWindow(%i, %i, \"%s\")\n", width, height, title);
+#endif
 
   InitWindow(width, height, title);
-  sendevent(cs_fd, CLIENT_ACK);
+  send_event(fd, CLIENT_ACK);
 }
 
 /* Process:
@@ -55,12 +49,15 @@ static void handleRaylibInitWindowEvent(void) {
    Server: SERVER_ACK */
 static void handleRaylibWindowShouldClose(void) {
   // Technically out of order but whatever
-  simplerequesteventpair(cs_fd, sc_fd, CLIENT_RESULT_READY, SERVER_REQUEST_RESULT);
+  simple_request_event_pair(fd, CLIENT_RESULT_READY, SERVER_REQUEST_RESULT);
 
   bool result = WindowShouldClose();
-  printf("result: %hhu\n", result);
 
-  senddataexpected(cs_fd, sc_fd, &result, sizeof(result), SERVER_ACK);
+#ifdef SHOW_WRAPPER_DATA
+  printf("WindowShouldClose() = %hhu\n", result);
+#endif
+
+  send_data_expected(fd, &result, sizeof(result), SERVER_ACK);
 }
 
 /* Process:
@@ -70,11 +67,14 @@ static void handleRaylibWindowShouldClose(void) {
    Client: CLIENT_ACK */
 static void handleRaylibClearBackground(void) {
   Color color;
-  recvdatarequest(cs_fd, sc_fd, CLIENT_REQUEST_PARAM, (void **)&color, sizeof(color));
-  printf("r: %hhu, g: %hhu, b: %hhx, a: %hhx\n", color.r, color.g, color.b, color.a);
+  recv_data_request(fd, CLIENT_REQUEST_PARAM, (void **)&color, sizeof(color));
+
+#ifdef SHOW_WRAPPER_DATA
+  printf("ClearBackground({%hhu, %hhu, %hhu, %hhu})\n", color.r, color.g, color.b, color.a);
+#endif
 
   ClearBackground(color);
-  sendevent(cs_fd, CLIENT_ACK);
+  send_event(fd, CLIENT_ACK);
 }
 
 /* Process:
@@ -82,13 +82,16 @@ static void handleRaylibClearBackground(void) {
    Client: CLIENT_REQUEST_PARAM
    Server: fps
    Client: CLIENT_ACK */
-static void handleRaylibSetTargetFPSEvent(void) {
+static void handleRaylibSetTargetFPS(void) {
   int fps;
-  recvdatarequest(cs_fd, sc_fd, CLIENT_REQUEST_PARAM, (void **)&fps, sizeof(fps));
-  printf("fps: %i\n", fps);
+  recv_data_request(fd, CLIENT_REQUEST_PARAM, (void **)&fps, sizeof(fps));
+
+#ifdef SHOW_WRAPPER_DATA
+  printf("SetTargetFps(%i)\n", fps);
+#endif
 
   SetTargetFPS(fps);
-  sendevent(cs_fd, CLIENT_ACK);
+  send_event(fd, CLIENT_ACK);
 }
 
 /* Process:
@@ -100,12 +103,12 @@ static void handleRaylibSetTargetFPSEvent(void) {
    Client: CLIENT_ACK */
 static void handleRaylibDrawText(void) {
   size_t datalen;
-  recvdatarequest(cs_fd, sc_fd, CLIENT_REQUEST_SIZE, (void **)&datalen, sizeof(datalen));
-  printf("datalen: %zu\n", datalen);
+  recv_data_request(fd, CLIENT_REQUEST_SIZE, (void **)&datalen, sizeof(datalen));
+  //printf("datalen: %zu\n", datalen);
 
   char data[datalen];
   char *pData = data;
-  recvdatarequest(cs_fd, sc_fd, CLIENT_REQUEST_PARAM, (void **)&data, sizeof(data));
+  recv_data_request(fd, CLIENT_REQUEST_PARAM, (void **)&data, sizeof(data));
 
   char *text = pData;
   int posX, posY, fontSize;
@@ -114,31 +117,30 @@ static void handleRaylibDrawText(void) {
   memcpy(&posY, pData += sizeof(posX), sizeof(posY));
   memcpy(&fontSize, pData += sizeof(posY), sizeof(fontSize));
   memcpy(&color, pData += sizeof(fontSize), sizeof(color));
-  printf("text: \"%s\", posX: %i, posY: %i, fontSize %i, r: %hhu, g: %hhu, b: %hhx, a: %hhx\n", text, posX, posY, fontSize, color.r, color.g, color.b, color.a);
+
+#ifdef SHOW_WRAPPER_DATA
+  printf("DrawText(\"%s\", %i, %i, %i, {%hhu, %hhu, %hhu, %hhu})\n", text, posX, posY, fontSize,
+    color.r, color.g, color.b, color.a);
+#endif
 
   DrawText(text, posX, posY, fontSize, color);
-  sendevent(cs_fd, CLIENT_ACK);
+  send_event(fd, CLIENT_ACK);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
   puts("Starting client");
+  fd = client_socket_fd;
 
-  // TODO Fix this breaking if the client is started first
-  sc_fd = openfifoclient("/tmp/cosmoguisc", O_RDONLY);
-  // temp fix for second open being ignored by server
-  sleep(1);
-  cs_fd = openfifoclient("/tmp/cosmoguics", O_WRONLY);
-
-  simpleresponseeventpair(cs_fd, sc_fd, SERVER_INIT, CLIENT_INIT);
+  simple_response_event_pair(fd, SERVER_INIT, CLIENT_INIT);
 
   bool loop = true;
   while(loop) {
-    event ev = recvevent(sc_fd);
+    event ev = recv_event(fd);
 
     switch(ev) {
       case SERVER_QUIT:
         loop = false;
-        sendevent(cs_fd, CLIENT_ACK);
+        send_event(fd, CLIENT_ACK);
         break;
 
       //------------------------------------------------------------------------------------
@@ -147,14 +149,14 @@ int main(void) {
 
       // Window-related functions
       case CALL_RAYLIB_INITWINDOW:
-        handleRaylibInitWindowEvent();
+        handleRaylibInitWindow();
         break;
       case CALL_RAYLIB_WINDOWSHOULDCLOSE:
         handleRaylibWindowShouldClose();
         break;
       case CALL_RAYLIB_CLOSEWINDOW:
         CloseWindow();
-        sendevent(cs_fd, CLIENT_ACK);
+        send_event(fd, CLIENT_ACK);
         break;
 
       // Drawing-related functions
@@ -163,16 +165,16 @@ int main(void) {
         break;
       case CALL_RAYLIB_BEGINDRAWING:
         BeginDrawing();
-        sendevent(cs_fd, CLIENT_ACK);
+        send_event(fd, CLIENT_ACK);
         break;
       case CALL_RAYLIB_ENDDRAWING:
         EndDrawing();
-        sendevent(cs_fd, CLIENT_ACK);
+        send_event(fd, CLIENT_ACK);
         break;
 
       // Timing-related functions
       case CALL_RAYLIB_SETTARGETFPS:
-        handleRaylibSetTargetFPSEvent();
+        handleRaylibSetTargetFPS();
         break;
 
       //------------------------------------------------------------------------------------
@@ -185,7 +187,7 @@ int main(void) {
         break;
       default:
         fprintf(stderr, "Server sent unexpected event\n");
-        sendevent(cs_fd, CLIENT_ERR);
+        send_event(fd, CLIENT_ERR);
         exit(UNEXPECTED_EVENT);
         break;
     }
@@ -193,8 +195,7 @@ int main(void) {
 
   puts("Stopping client");
 
-  close(sc_fd);
-  close(cs_fd);
+  close(fd);
 
   return 0;
 }

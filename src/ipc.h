@@ -48,18 +48,20 @@ extern const char *unexpectedEventMsg;
 
 extern char *event_names[18];
 
-void sendevent(int, event);
+extern int client_socket_fd;
 
-event recvevent(int);
-void recveventexpected(int, event);
+void send_event(int socketFd, event sendEvent);
 
-void simplerequesteventpair(int send_fd, int recv_fd, event send_event, event recv_event);
-void simpleresponseeventpair(int send_fd, int recv_fd, event recv_event, event send_event);
+event recv_event(int socketFd);
+void recv_event_expected(int socketFd, event recvEvent);
 
-void senddata(int, void *, size_t);
-void senddataexpected(int, int, void *, size_t, event);
+void simple_request_event_pair(int socketFd, event sendEvent, event recvEvent);
+void simple_response_event_pair(int socketFd, event recvEvent, event sendEvent);
 
-void recvdata(int, void **, size_t);
-void recvdatarequest(int, int, event, void **, size_t);
+void send_data(int socketFd, void *data, size_t dataLen);
+void send_data_expected(int socketFd, void *data, size_t dataLen, event recvEvent);
+
+void recv_data(int socketFd, void **data, size_t dataLen);
+void recv_data_request(int socketFd, event send_event, void **data, size_t dataLen);
 
 #endif /* ipcevents_h */
