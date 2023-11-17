@@ -1,17 +1,14 @@
 COSMOCC ?= cosmocc
 LINUXCC ?= cc
-WINCC ?= x86_64-w64-mingw32-gcc
+WINCC   ?= x86_64-w64-mingw32-gcc
 
 LINUXAR ?= ar
-WINAR ?= x86_64-w64-mingw32-ar
+WINAR   ?= x86_64-w64-mingw32-ar
 
 PREFIX ?= output
 
-INCLUDES = src/exitcodes.h src/ipc.h $(PREFIX)/include/raylib.h
-INCLUDEPATHS = -I$(PREFIX)/include/
-
 .PHONY: build clean
-build: $(PREFIX)/bin/cosmo/server.com $(PREFIX)/bin/linux/client $(PREFIX)/bin/windows/client.exe
+build: $(PREFIX)/bin/cosmo/gui.com $(PREFIX)/lib/x86_64-unknown-linux-gnu/libraylib.so $(PREFIX)/lib/x86_64-pc-windows-gnu/raylib.dll
 
 clean:
 	rm -rf $(PREFIX)
@@ -20,14 +17,8 @@ $(PREFIX)/%/:
 	mkdir -p $@
 
 
-$(PREFIX)/bin/cosmo/server.com: src/server.c src/ipc.c $(INCLUDES) | $(PREFIX)/bin/cosmo/
-	$(COSMOCC) -o $@ $(filter %.c,$^) -D_COSMO_SOURCE_ -DSERVER $(INCLUDEPATHS)
-
-$(PREFIX)/bin/linux/client: src/client.c src/ipc.c $(INCLUDES) $(PREFIX)/lib/linux/libraylib.a | $(PREFIX)/bin/linux/
-	$(LINUXCC) -o $@ $(filter %.c,$^) -DCLIENT $(INCLUDEPATHS) -L$(PREFIX)/lib/linux/ -lraylib -lm
-
-$(PREFIX)/bin/windows/client.exe: src/client.c src/ipc.c $(INCLUDES) $(PREFIX)/lib/windows/libraylib.a | $(PREFIX)/bin/windows/
-	$(WINCC) -o $@ $(filter %.c,$^) -DCLIENT $(INCLUDEPATHS) -L$(PREFIX)/lib/windows/ -lraylib -lgdi32 -lwinmm
+$(PREFIX)/bin/cosmo/gui.com: src/gui.c $(PREFIX)/include/raylib.h | $(PREFIX)/bin/cosmo/
+	$(COSMOCC) -o $@ $(filter %.c,$^) -D_COSMO_SOURCE -I$(PREFIX)/include/
 
 $(PREFIX)/include/raylib.h: third_party/raylib/src/raylib.h | $(PREFIX)/include/
 	cp --update $< $@
@@ -35,11 +26,15 @@ $(PREFIX)/include/raylib.h: third_party/raylib/src/raylib.h | $(PREFIX)/include/
 
 .NOTPARALLEL: $(PREFIX)/lib/linux/libraylib.a $(PREFIX)/lib/windows/libraylib.a
 
-$(PREFIX)/lib/linux/libraylib.a: | $(PREFIX)/lib/linux/
+$(PREFIX)/lib/x86_64-unknown-linux-gnu/libraylib.so: | $(PREFIX)/lib/x86_64-unknown-linux-gnu/
 	$(MAKE) -C third_party/raylib/src/ clean
-	$(MAKE) -C third_party/raylib/src/ CC=$(LINUXCC) AR=$(LINUXAR) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=LINUX RAYLIB_RELEASE_PATH=../../../output/lib/linux/
+	$(MAKE) -C third_party/raylib/src/ CC=$(LINUXCC) AR=$(LINUXAR) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=LINUX RAYLIB_LIBTYPE=SHARED RAYLIB_RELEASE_PATH=../../../output/lib/x86_64-unknown-linux-gnu/
 
-# Not sure why raylib doesn't use .lib for windows
-$(PREFIX)/lib/windows/libraylib.a: | $(PREFIX)/lib/windows/
+$(PREFIX)/lib/x86_64-pc-windows-gnu/raylib.dll: third_party/raylib/src/raylib.dll.rc.data.updated | $(PREFIX)/lib/x86_64-pc-windows-gnu/
 	$(MAKE) -C third_party/raylib/src/ clean
-	$(MAKE) -C third_party/raylib/src/ CC=$(WINCC) AR=$(WINAR) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=WINDOWS RAYLIB_RELEASE_PATH=../../../output/lib/windows/
+	$(MAKE) -C third_party/raylib/src/ CC=$(WINCC) AR=$(WINAR) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=WINDOWS RAYLIB_LIBTYPE=SHARED RAYLIB_RELEASE_PATH=../../../output/lib/x86_64-pc-windows-gnu/
+
+# raylib 4.5.0 ships with a 32 bit resource file, this was corrected after release
+third_party/raylib/src/raylib.dll.rc.data.updated:
+	wget https://github.com/raysan5/raylib/raw/19892a3c3a08a9bfa291d0d8c745ca23a27c9972/src/raylib.dll.rc.data -O third_party/raylib/src/raylib.dll.rc.data
+	touch $@
