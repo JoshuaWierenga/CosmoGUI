@@ -1,9 +1,5 @@
-#ifdef __COSMOPOLITAN__
 #include <cosmo.h>
-#endif
-#ifndef _WIN32
 #include <dlfcn.h>
-#endif
 #include <raylib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,37 +18,11 @@
 
 // TODO: Move raylib into gui with rglfw in shared libaries
 // TODO: Pack shared libraries into cosmo zip
-// TODO: Remove or finish unfinished/broken support for other native builds with other libcs, mostly useful for debugging
 
 wontreturn void defaultFunc(const char *name) {
   fprintf(stderr, "FATAL: Function is not loaded: %s\n", name);
   exit(1);
 }
-
-#if defined(__COSMOPOLITAN__)
-#define openlib(path, flags) cosmo_dlopen(path, flags)
-#define openliberror() cosmo_dlerror()
-#define openfunc(lib, name) cosmo_dlsym(lib, name)
-#define openfuncerror() cosmo_dlerror()
-#define closelib(lib) cosmo_dlclose(lib)
-#elif defined(__linux__ )
-#define openlib(path, flags) dlopen(path, flags)
-#define openliberror() dlerror()
-#define openfunc(lib, name) dlsym(lib, name)
-#define openfuncerror() dlerror()
-#define closelib(lib) dlclose(lib)
-#else
-int64_t LoadLibraryA(const char *lpLibFileName);
-void *GetProcAddress(int64_t hModule, const char *lpProcName);
-int32_t FreeLibrary(int64_t hLibModule);  
-
-// TODO: Use FormatMessage to actually get the error and so merge error macro functions
-#define openlib(path, flags) (void *)LoadLibraryA(path)
-#define openliberror() "Failed to load library\n"
-#define openfunc(lib, name) GetProcAddress((int64_t)lib, name)
-#define openfuncerror() "Failed to load function\n"
-#define closelib(lib) FreeLibrary((int64_t)lib)
-#endif
 
 #define wrapFunction(returnType, name, parameters, parameterNames) \
 returnType (*P ## name)parameters = NULL;\
@@ -60,23 +30,23 @@ returnType name parameters {\
   if (!P ## name) {\
     defaultFunc(#name);\
   }\
-  fprintf(stderr, "INFO: Calling libglfw function: " # name "\n");\
+  fprintf(stderr, "INFO: Calling libraylib function: " # name "\n");\
   return P ## name parameterNames;\
 }
 
 #define loadLibrary(var, path, mode) \
-void *var = openlib(path, mode);\
+void *var = cosmo_dlopen(path, mode);\
 if (!var) {\
-  fprintf(stderr, "%s", openliberror());\
+  fprintf(stderr, "%s\n", dlerror());\
   exit(1);\
 } else {\
   fprintf(stderr, "INFO: Loaded required library: " # path "\n");\
 }
 
 #define loadFunction(lib, name)\
-P ## name = openfunc(lib, #name);\
+P ## name = cosmo_dlsym(lib, #name);\
 if (!P ## name) {\
-  fprintf(stderr, "ERROR: Failed to load required function: " # name ": \n", openfuncerror());\
+  fprintf(stderr, "ERROR: Failed to load required function: " # name ": %s\n", dlerror());\
 } else {\
   fprintf(stderr, "INFO: Loaded required function: " # name "\n");\
 }
@@ -103,8 +73,8 @@ wrapFunction(void, SetTargetFPS, (int fps), (fps))
 //------------------------------------------------------------------------------------
 wrapFunction(void, DrawText, (const char *text, int posX, int posY, int fontSize, Color color), (text, posX, posY, fontSize, color));
 
-static char linuxLibPath[] = "output/lib/linux/libraylib.so";
-static char windowsLibPath[] = "output/lib/windows/raylib.dll";
+static char linuxLibPath[] = "output/lib/x86_64-unknown-linux-gnu/libraylib.so";
+static char windowsLibPath[] = "output/lib/x86_64-pc-windows-gnu/raylib.dll";
 
 char *getLibPath() {
 #if defined(__COSMOPOLITAN__)
