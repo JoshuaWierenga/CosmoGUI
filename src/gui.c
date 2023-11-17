@@ -1,8 +1,9 @@
 #include <cosmo.h>
-#include <dlfcn.h>
 #include <raylib.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "raylib-wrapper.h"
 
 #ifndef __COSMOPOLITAN__
 #define wontreturn __attribute__((__noreturn__))
@@ -18,66 +19,12 @@
 
 // TODO: Move raylib into gui with rglfw in shared libaries
 // TODO: Pack shared libraries into cosmo zip
-
-wontreturn void defaultFunc(const char *name) {
-  fprintf(stderr, "FATAL: Function is not loaded: %s\n", name);
-  exit(1);
-}
-
-#define wrapFunction(returnType, name, parameters, parameterNames) \
-returnType (*P ## name)parameters = NULL;\
-returnType name parameters {\
-  if (!P ## name) {\
-    defaultFunc(#name);\
-  }\
-  fprintf(stderr, "INFO: Calling libraylib function: " # name "\n");\
-  return P ## name parameterNames;\
-}
-
-#define loadLibrary(var, path, mode) \
-void *var = cosmo_dlopen(path, mode);\
-if (!var) {\
-  fprintf(stderr, "%s\n", dlerror());\
-  exit(1);\
-} else {\
-  fprintf(stderr, "INFO: Loaded required library: " # path "\n");\
-}
-
-#define loadFunction(lib, name)\
-P ## name = cosmo_dlsym(lib, #name);\
-if (!P ## name) {\
-  fprintf(stderr, "ERROR: Failed to load required function: " # name ": %s\n", dlerror());\
-} else {\
-  fprintf(stderr, "INFO: Loaded required function: " # name "\n");\
-}
-
-//------------------------------------------------------------------------------------
-// Window and Graphics Device Functions (Module: core)
-//------------------------------------------------------------------------------------
-
-// Window-related functions
-wrapFunction(void, InitWindow, (int width, int height, const char *title), (width, height, title))
-wrapFunction(bool, WindowShouldClose, (void), ())
-wrapFunction(void, CloseWindow, (void), ())
-
-// Drawing-related functions
-wrapFunction(void, ClearBackground, (Color color), (color))
-wrapFunction(void, BeginDrawing, (void), ())
-wrapFunction(void, EndDrawing, (void), ())
-
-// Timing-related functions
-wrapFunction(void, SetTargetFPS, (int fps), (fps))
-
-//------------------------------------------------------------------------------------
-// Font Loading and Text Drawing Functions (Module: text)
-//------------------------------------------------------------------------------------
-wrapFunction(void, DrawText, (const char *text, int posX, int posY, int fontSize, Color color), (text, posX, posY, fontSize, color));
+// TODO: Run raylib's CloseWindow on ctrl+c
 
 static char linuxLibPath[] = "output/lib/x86_64-unknown-linux-gnu/libraylib.so";
 static char windowsLibPath[] = "output/lib/x86_64-pc-windows-gnu/raylib.dll";
 
 char *getLibPath() {
-#if defined(__COSMOPOLITAN__)
   static char *libPath;
   if (IsLinux()) {
     puts("OS: Linux, SERVER LIBC: Cosmo, NATIVE LIBC: ?");
@@ -89,34 +36,9 @@ char *getLibPath() {
     fprintf(stderr, "OS not supported");
     exit(1);
   }
-#elif defined(__linux__)
-  puts("OS: Linux, SERVER LIBC: glibc/musl, NATIVE LIBC: glibc/musl");
-  static char *libPath = linuxLibPath;
-#elif defined(_WIN32)
-  puts("OS: Windows, SERVER LIBC: (u)crt, NATIVE LIBC: (u)crt");
-  static char *libPath = windowsLibPath;
-#else
-#error OS not supported
-#endif /* __COSMOPOLITAN__, __linux__, _WIN32 */
-
-  printf("PATH: %s\n", libPath);
 
   return libPath;
 }
-
-void initRaylibWrapper(char *raylibPath) {
-  loadLibrary(libraylib, raylibPath, RTLD_LAZY);
-  
-  loadFunction(libraylib, InitWindow);
-  loadFunction(libraylib, SetTargetFPS);
-  loadFunction(libraylib, WindowShouldClose);
-  loadFunction(libraylib, BeginDrawing);
-  loadFunction(libraylib, ClearBackground);
-  loadFunction(libraylib, DrawText);
-  loadFunction(libraylib, EndDrawing);
-  loadFunction(libraylib, CloseWindow);
-}
-
 
 /*******************************************************************************************
 *

@@ -5,23 +5,29 @@ WINCC   ?= x86_64-w64-mingw32-gcc
 LINUXAR ?= ar
 WINAR   ?= x86_64-w64-mingw32-ar
 
+PYTHON ?= python
+
 PREFIX ?= output
 
 .PHONY: build clean
 build: $(PREFIX)/bin/cosmo/gui.com $(PREFIX)/lib/x86_64-unknown-linux-gnu/libraylib.so $(PREFIX)/lib/x86_64-pc-windows-gnu/raylib.dll
 
 clean:
-	rm -rf $(PREFIX)
+	rm -rf $(PREFIX) src/generated/
 
-$(PREFIX)/%/:
+%/:
 	mkdir -p $@
 
 
-$(PREFIX)/bin/cosmo/gui.com: src/gui.c $(PREFIX)/include/raylib.h | $(PREFIX)/bin/cosmo/
+$(PREFIX)/bin/cosmo/gui.com: src/gui.c src/generated/raylib-wrapper.c $(PREFIX)/include/raylib.h | $(PREFIX)/bin/cosmo/
 	$(COSMOCC) -o $@ $(filter %.c,$^) -D_COSMO_SOURCE -I$(PREFIX)/include/
 
 $(PREFIX)/include/raylib.h: third_party/raylib/src/raylib.h | $(PREFIX)/include/
 	cp --update $< $@
+
+
+src/generated/raylib-wrapper.c: tools/generate-raylib-wrapper.py | src/generated/
+	$(PYTHON) $<
 
 
 .NOTPARALLEL: $(PREFIX)/lib/linux/libraylib.a $(PREFIX)/lib/windows/libraylib.a
