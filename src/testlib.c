@@ -1,21 +1,23 @@
+#include <stdint.h>
+
 #include "testlib.h"
 
-int add2(int a, int b) {
+int32_t add2(int32_t a, int32_t b) {
   return a + b;
 }
 
-int add3(int a, int b, int c) {
+int32_t add3(int32_t a, int32_t b, int32_t c) {
   return a + b + c;
 }
 
-int add4(int a, int b, int c, int d) {
+int32_t add4(int32_t a, int32_t b, int32_t c, int32_t d) {
   return a + b + c + d;
 }
 
-int add5(int a, int b, int c, int d, int e) {
+int32_t add5(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e) {
   return a + b + c + d + e;
 }
 
-int add6(int a, int b, int c, int d, int e, int f) {
+int32_t add6(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
   return a + b + c + d + e + f;
 }
