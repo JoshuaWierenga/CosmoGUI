@@ -21,3 +21,7 @@ int32_t add5(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e) {
 int32_t add6(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
   return a + b + c + d + e + f;
 }
+
+int32_t add7(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f, int32_t g) {
+  return a + b + c + d + e + f + g;
+}
