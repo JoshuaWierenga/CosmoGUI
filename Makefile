@@ -15,7 +15,7 @@ PREFIX ?= output
 build: libtestlib $(PREFIX)/x86_64-unknown-cosmo/bin/addtest.com
 
 clean:
-	rm -rf $(PREFIX)
+	rm -rf $(PREFIX) src/generated/
 
 %/:
 	mkdir -p $@
@@ -26,14 +26,19 @@ $(PREFIX)/x86_64-unknown-linux-gnu/include/testlib.h: src/testlib.h | $(PREFIX)/
 	cp --update $< $@
 
 
+# Generated files
+src/generated/x86_64-unknown-linux-gnu/libtestlib.so.init.c src/generated/x86_64-unknown-linux-gnu/libtestlib.so.tramp.S: third_party/Implib.so/implib-gen.py $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib.so | src/generated/x86_64-unknown-linux-gnu/
+	$(PYTHON) $^ -o $(dir $@) --dlopen-callback cosmo_dlopen_wrapper --dlsym-callback cosmo_dlsym
+
+
 # Shared libaries
 $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib.so: src/testlib.c | $(PREFIX)/x86_64-unknown-linux-gnu/lib/
 	$(LINUXCC) --shared -fpic -o $@ $< -lm
 
 
 # Executables
-$(PREFIX)/x86_64-unknown-cosmo/bin/addtest.com: src/addtest.c libtestlib | $(PREFIX)/x86_64-unknown-cosmo/bin/
-	$(COSMOCC) -mcosmo -o $@ $(filter %.c,$^) -I$(PREFIX)/x86_64-unknown-linux-gnu/include/
+$(PREFIX)/x86_64-unknown-cosmo/bin/addtest.com: src/addtest.c src/dlopen_wrapper.c src/generated/x86_64-unknown-linux-gnu/libtestlib.so.init.c src/generated/x86_64-unknown-linux-gnu/libtestlib.so.tramp.S $(PREFIX)/x86_64-unknown-linux-gnu/include/testlib.h | $(PREFIX)/x86_64-unknown-cosmo/bin/
+	$(COSMOCC) -mcosmo -o $@ $(filter %.c %.S,$^) -I$(PREFIX)/x86_64-unknown-linux-gnu/include/
 
 
 libtestlib: $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib.so $(PREFIX)/x86_64-unknown-linux-gnu/include/testlib.h
