@@ -34,11 +34,9 @@ $(PREFIX)/x86_64-unknown-linux-gnu/include/testlib_wrapper.h: src/generated/x86_
 
 
 # Generated files
-src/generated/x86_64-unknown-linux-gnu/libtestlib.so.init.c src/generated/x86_64-unknown-linux-gnu/libtestlib.so.tramp.S src/generated/x86_64-unknown-linux-gnu/libtestlib.so.headerwrapper.h src/generated/x86_64-unknown-linux-gnu/libtestlib.so.nativewrapper.c src/generated/x86_64-unknown-linux-gnu/libtestlib.so.cosmowrapper.c: third_party/Implib.so/implib-gen.py $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib-d.so $(PREFIX)/x86_64-unknown-linux-gnu/include/testlib.h | src/generated/x86_64-unknown-linux-gnu/
-	$(PYTHON) $(filter %.py %.so,$^) -o $(dir $@) -c --headers stdint.h testlib.h
-	cd $(dir $@) && rename -d 's/libtestlib-d/libtestlib/g' libtestlib-d*
-	sed -i s/libtestlib-d/libtestlib/ $(dir $@)/libtestlib.so.nativewrapper.c
-	sed -i s/libtestlib-d/libtestlib/ $(dir $@)/libtestlib.so.cosmowrapper.c
+# TODO Prevent running this more than once with parallel builds
+src/generated/x86_64-unknown-linux-gnu/libtestlib.so.init.c src/generated/x86_64-unknown-linux-gnu/libtestlib.so.tramp.S src/generated/x86_64-unknown-linux-gnu/libtestlib.so.headerwrapper.h src/generated/x86_64-unknown-linux-gnu/libtestlib.so.nativewrapper.c src/generated/x86_64-unknown-linux-gnu/libtestlib.so.cosmowrapper.c: third_party/Implib.so/implib-gen.py $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib.so $(PREFIX)/x86_64-unknown-linux-gnu/include/testlib.h $(PREFIX)/x86_64-unknown-linux-gnu/bin/ctags | src/generated/x86_64-unknown-linux-gnu/
+	$(PYTHON) $(filter %.py %.so,$^) -o $(dir $@) --ctags ./output/x86_64-unknown-linux-gnu/bin/ctags --input-headers $(filter %.h,$^) --output-headers stdint.h
 
 # Replace debug library scan with scan of symtab + headers
 src/generated/x86_64-unknown-linux-gnu/libtestlib_wrapper.so.init.c src/generated/x86_64-unknown-linux-gnu/libtestlib_wrapper.so.tramp.S: third_party/Implib.so/implib-gen.py $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib_wrapper.so | src/generated/x86_64-unknown-linux-gnu/
@@ -49,9 +47,6 @@ src/generated/x86_64-unknown-linux-gnu/libtestlib_wrapper.so.init.c src/generate
 $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib.so: src/testlib.c src/testlib.h | $(PREFIX)/x86_64-unknown-linux-gnu/lib/
 	$(LINUXCC) --shared -fpic -o $@ $(filter %.c,$^)
 
-$(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib-d.so: src/testlib.c src/testlib.h | $(PREFIX)/x86_64-unknown-linux-gnu/lib/
-	$(LINUXCC) -g --shared -fpic -o $@ $(filter %.c,$^)
-
 # TODO Find a way to not include libtestlib setup functions
 $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib_wrapper.so: src/generated/x86_64-unknown-linux-gnu/libtestlib.so.nativewrapper.c $(libtestlib) src/generated/x86_64-unknown-linux-gnu/libtestlib.so.init.c src/generated/x86_64-unknown-linux-gnu/libtestlib.so.tramp.S | $(PREFIX)/x86_64-unknown-linux-gnu/lib/
 	$(LINUXCC) --shared -fpic -o $@ $(filter %.c %.S,$^) -I$(PREFIX)/x86_64-unknown-linux-gnu/include/
@@ -60,3 +55,7 @@ $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib_wrapper.so: src/generated/x86_
 # Executables
 $(PREFIX)/x86_64-unknown-cosmo/bin/addtest.com: src/addtest.c src/dlopen_wrapper.c src/generated/x86_64-unknown-linux-gnu/libtestlib.so.cosmowrapper.c $(libtestlib_wrapper) $(PREFIX)/x86_64-unknown-linux-gnu/include/testlib.h $(PREFIX)/x86_64-unknown-linux-gnu/include/testlib_wrapper.h src/generated/x86_64-unknown-linux-gnu/libtestlib_wrapper.so.init.c src/generated/x86_64-unknown-linux-gnu/libtestlib_wrapper.so.tramp.S | $(PREFIX)/x86_64-unknown-cosmo/bin/
 	$(COSMOCC) -mcosmo -o $@ $(filter %.c %.S,$^) -I$(PREFIX)/x86_64-unknown-linux-gnu/include/
+
+$(PREFIX)/x86_64-unknown-linux-gnu/bin/ctags:
+	cd third_party/ctags && ./autogen.sh && ./configure --prefix $(PWD)/$(PREFIX)/x86_64-unknown-linux-gnu
+	$(MAKE) -C third_party/ctags install

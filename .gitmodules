@@ -1,3 +1,6 @@
 [submodule "third_party/Implib.so"]
 	path = third_party/Implib.so
 	url = https://github.com/yugr/Implib.so.git
+[submodule "third_party/ctags"]
+	path = third_party/ctags
+	url = https://github.com/universal-ctags/ctags.git
