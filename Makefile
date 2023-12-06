@@ -29,7 +29,7 @@ libtestlib_wrapper = $(PREFIX)/x86_64-unknown-linux-gnu/lib/libtestlib_wrapper.s
 $(PREFIX)/x86_64-unknown-linux-gnu/include/testlib.h: src/testlib.h | $(PREFIX)/x86_64-unknown-linux-gnu/include/
 	cp --update $< $@
 
-$(PREFIX)/x86_64-unknown-linux-gnu/include/testlib_wrapper.h: src/testlib_wrapper.h | $(PREFIX)/x86_64-unknown-linux-gnu/include/
+$(PREFIX)/x86_64-unknown-linux-gnu/include/testlib_wrapper.h: src/generated/x86_64-unknown-linux-gnu/libtestlib.so.headerwrapper.h | $(PREFIX)/x86_64-unknown-linux-gnu/include/
 	cp --update $< $@
 
 
