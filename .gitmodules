@@ -1,6 +1,9 @@
 [submodule "third_party/Implib.so"]
 	path = third_party/Implib.so
-	url = https://github.com/yugr/Implib.so.git
+	url = https://github.com/JoshuaWierenga/Implib.so.git
 [submodule "third_party/ctags"]
 	path = third_party/ctags
 	url = https://github.com/universal-ctags/ctags.git
+[submodule "third_party/raylib"]
+	path = third_party/raylib
+	url = https://github.com/raysan5/raylib.git
