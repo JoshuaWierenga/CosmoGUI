@@ -1,11 +1,5 @@
 #! /bin/sh
 
-# TODO: Switch back to make?
-# TODO: Support aarch64 for linux and MacOS
-# TODO: Support FreeBSD and NetBSD
-# TODO: Ensure Musl Libc works
-# TODO: Replace dlopen with custom ipc for x86-64 OpenBSD and MacOS?
-
 COSMOCC="${COSMOCC:-x86_64-unknown-cosmo-cc}"
 LINUXCC="${LINUXCC:-gcc}"
 WINCC="${WINCC:-x86_64-w64-mingw32-gcc}"
@@ -59,7 +53,7 @@ $RAYLIBCOSMOCC -o "$OUTPUT/bin/shapes_basic_shapes.com" "$RAYLIBSRC/../examples/
 # TODO: Fix, currently fails to compile because of redefined symbols
 #$RAYLIBCOSMOCC -o "$OUTPUT/bin/core_3d_camera_first_person.com" src/core_3d_camera_first_person.c
 $RAYLIBCOSMOCC -o "$OUTPUT/bin/core_3d_camera_split_screen.com" "$RAYLIBSRC/../examples/core/core_3d_camera_split_screen.c"
-$RAYLIBCOSMOCC -o "$OUTPUT/bin/controls"_test_suite.com src/raygui_fix.c third_party/raygui/examples/controls_test_suite/controls_test_suite.c -Ithird_party/raygui/src/
+$RAYLIBCOSMOCC -o "$OUTPUT/bin/controls_test_suite.com" src/raygui_fix.c third_party/raygui/examples/controls_test_suite/controls_test_suite.c -Ithird_party/raygui/src/
 # TODO: Fix, currently complains about raylib's colours being missing, none of the other files do
 #sed 's/pause/paused/g;16 i #include <stdbool.h>' third_party/raylib-games/classics/src/tetris.c > "$GENERATED/tetris.c" && $RAYLIBCOSMOCC -o "$OUTPUT/bin/tetris.com" "$GENERATED/tetris.c"
 $RAYLIBCOSMOCC -o "$OUTPUT/bin/snake.com" third_party/raylib-games/classics/src/snake.c
