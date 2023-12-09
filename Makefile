@@ -1,7 +1,8 @@
-# TODO: Fix Linux needing libraylib.so at runtime
 # TODO: Allow hiding windows console
 # TODO: Allow finding libraylib_wrapper.so in exec folder, just like libraylib_wrapper.dll
+# TODO: Use pointers instead of structs for wrapper returns
 # TODO: Pack wrapper libraries into zipos
+# TODO: Prevent first_person_maze.com from rebuilding despite not dependancy changes
 # TODO: Move raylib into cosmo exec with only glfw in wrapper libraries
 # TODO: Support Windows building?
 # TODO: Support aarch64 for Linux and MacOS
@@ -9,7 +10,7 @@
 # TODO: Ensure Musl Libc works
 # TODO: Replace dlopen with custom ipc for x86-64 OpenBSD and MacOS?
 
-# For Linux, a folder with libraylib.so and libraylib_wrapper.so from $(x86_64GLIBCOUTPUT)/bin/ need to in LD_LIBRARY_PATH.
+# For Linux, a folder with libraylib_wrapper.so from $(x86_64GLIBCOUTPUT)/bin/ needs to in LD_LIBRARY_PATH.
 # For Windows, libraylib_wrapper.dll from $(x86_64MINGWOUTPUT)/lib/ needs to be in the same folder as the com file.
 
 x86_64COSMOCC ?= x86_64-unknown-cosmo-cc
@@ -53,11 +54,15 @@ $(GENERATED)/raylib.h: $(x86_64COSMOOUTPUT)/include/raylib.h | $(GENERATED)/
 
 
 # Generated files
-$(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBGEN)/libraylib.so.headerwrapper.h $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.nativewrapper.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S &: $(x86_64GLIBCOUTPUT)/lib/libraylib.so $(x86_64GLIBCOUTPUT)/bin/ctags $(GENERATED)/raylib.h | $(LIBRAYLIBGEN)/
+$(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBGEN)/libraylib.so.headerwrapper.h $(LIBRAYLIBGEN)/libraylib.so.nativewrapper.c &: $(x86_64GLIBCOUTPUT)/lib/libraylib.so $(x86_64GLIBCOUTPUT)/bin/ctags $(GENERATED)/raylib.h | $(LIBRAYLIBGEN)/
 	$(PYTHON) third_party/Implib.so/implib-gen.py $< -o $(LIBRAYLIBGEN)/ --ctags $(x86_64GLIBCOUTPUT)/bin/ctags --input-headers $(GENERATED)/raylib.h --windows-library libraylib_wrapper.dll
+	rm $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S
 
-$(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S &: $(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper.so | $(LIBRAYLIBWRAPPERGEN)/
+$(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S &: $(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper_temp.so | $(LIBRAYLIBWRAPPERGEN)/
 	$(PYTHON) third_party/Implib.so/implib-gen.py $< -o $(LIBRAYLIBWRAPPERGEN)/ --dlopen-callback cosmo_dlopen_wrapper --dlsym-callback cosmo_dlsym
+	mv --update $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper_temp.so.tramp.S $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S
+	sed 's/libraylib_wrapper_temp\.so/libraylib_wrapper.so/' $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper_temp.so.init.c > $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c
+	rm $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper_temp.so.init.c
 
 
 # Shared libaries
@@ -66,16 +71,24 @@ $(x86_64GLIBCOUTPUT)/lib/libraylib.so: | $(x86_64GLIBCOUTPUT)/lib/
 	$(MAKE) -C $(RAYLIB)/src CC=$(x86_64GLIBCCC) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=LINUX RAYLIB_LIBTYPE=SHARED
 	cp --update $(RAYLIB)/src/libraylib.so* $(dir $@)
 
-$(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper.so: $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.nativewrapper.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S $(GENERATED)/raylib.h | $(x86_64GLIBCOUTPUT)/lib/
+$(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper_temp.so: $(LIBRAYLIBGEN)/libraylib.so.nativewrapper.c $(GENERATED)/raylib.h | $(x86_64GLIBCOUTPUT)/lib/
 	$(x86_64GLIBCCC) --shared -fpic -o $@ $^ -I$(GENERATED)/
+
+$(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper.so: $(LIBRAYLIBGEN)/libraylib.so.nativewrapper.c $(GENERATED)/raylib.h $(x86_64GLIBCOUTPUT)/lib/libraylib.a | $(x86_64GLIBCOUTPUT)/lib/
+	$(x86_64GLIBCCC) --shared -fpic -o $@ $^ -I$(GENERATED)/ -L$(x86_64GLIBCOUTPUT)/lib/ -l:libraylib.a -lm
 
 $(x86_64MINGWOUTPUT)/lib/libraylib_wrapper.dll: $(LIBRAYLIBGEN)/libraylib.so.nativewrapper.c $(GENERATED)/raylib.h $(x86_64MINGWOUTPUT)/lib/libraylib.a | $(x86_64MINGWOUTPUT)/lib/
 	$(x86_64MINGWCC) --shared -fpic -o $@ $^ -I$(GENERATED)/ -L$(x86_64MINGWOUTPUT)/lib/ -lraylib -lgdi32 -lwinmm
 
 
 # Static libaries
-# This does not actually depend on the shared wrapper but cannot be built at the same time
-$(x86_64MINGWOUTPUT)/lib/libraylib.a: $(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper.so | $(x86_64MINGWOUTPUT)/lib/
+# These does not actually depend on the each other and the shared wrapper but cannot be built at the same time
+$(x86_64GLIBCOUTPUT)/lib/libraylib.a: $(x86_64GLIBCOUTPUT)/lib/libraylib.so | $(x86_64GLIBCOUTPUT)/lib/
+	$(MAKE) -C $(RAYLIB)/src clean
+	$(MAKE) -C $(RAYLIB)/src CC=$(x86_64GLIBCCC) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=LINUX RAYLIB_LIBTYPE=STATIC
+	cp --update $(RAYLIB)/src/libraylib.a $@
+
+$(x86_64MINGWOUTPUT)/lib/libraylib.a: $(x86_64GLIBCOUTPUT)/lib/libraylib.so $(x86_64GLIBCOUTPUT)/lib/libraylib.a | $(x86_64MINGWOUTPUT)/lib/
 	$(MAKE) -C $(RAYLIB)/src clean
 	$(MAKE) -C $(RAYLIB)/src CC=$(x86_64MINGWCC) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=WINDOWS RAYLIB_LIBTYPE=STATIC
 	cp --update $(RAYLIB)/src/libraylib.a $@
