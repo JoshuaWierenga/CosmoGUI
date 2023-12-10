@@ -1,5 +1,4 @@
 # TODO: Use pointers instead of structs for wrapper returns
-# TODO: Pack wrapper libraries into zipos
 # TODO: Prevent first_person_maze.com from rebuilding despite not dependency changes
 # TODO: Move raylib into cosmo exec with only glfw in wrapper libraries
 # TODO: Support Windows building?
@@ -8,10 +7,6 @@
 # TODO: Support FreeBSD and NetBSD
 # TODO: Ensure Musl Libc works
 # TODO: Replace dlopen with custom ipc for x86-64 OpenBSD and MacOS?
-
-# For Linux, libraylib_wrapper.so from $(x86_64GLIBCOUTPUT)/bin/ can either be in the same folder
-# as the com file or in folder that is in LD_LIBRARY_PATH.
-# For Windows, libraylib_wrapper.dll from $(x86_64MINGWOUTPUT)/lib/ needs to be in the same folder.
 
 x86_64COSMOCC ?= x86_64-unknown-cosmo-cc
 x86_64GLIBCCC ?= gcc
@@ -32,13 +27,13 @@ LIBRAYLIBGEN = $(GENERATED)/libraylib/
 LIBRAYLIBWRAPPERGEN = $(GENERATED)/libraylib_wrapper/
 
 RAYLIBCOSMOCC = $(x86_64COSMOCC) -mcosmo src/cosmo_gui_setup.c -I$(x86_64COSMOOUTPUT)/include/ $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S -DDISABLECONSOLE
-RAYLIBDEPS = src/cosmo_gui_setup.c $(x86_64COSMOOUTPUT)/include/raylib.h $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S $(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper.so
+RAYLIBDEPS = src/cosmo_gui_setup.c $(x86_64COSMOOUTPUT)/include/raylib.h $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S $(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper.so $(x86_64MINGWOUTPUT)/lib/libraylib_wrapper.dll
 
-ZIPEXEC = zip -jq $@ $(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper.so
+ZIPEXEC = zip -jq $@ $(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper.so $(x86_64MINGWOUTPUT)/lib/libraylib_wrapper.dll
 
 .PHONY: build clean
 
-build: $(x86_64MINGWOUTPUT)/lib/libraylib_wrapper.dll $(x86_64COSMOOUTPUT)/bin/shapes_basic_shapes.com $(x86_64COSMOOUTPUT)/bin/core_3d_camera_split_screen.com $(x86_64COSMOOUTPUT)/bin/controls_test_suite.com $(x86_64COSMOOUTPUT)/bin/snake.com $(x86_64COSMOOUTPUT)/bin/first_person_maze.com
+build: $(x86_64COSMOOUTPUT)/bin/shapes_basic_shapes.com $(x86_64COSMOOUTPUT)/bin/core_3d_camera_split_screen.com $(x86_64COSMOOUTPUT)/bin/controls_test_suite.com $(x86_64COSMOOUTPUT)/bin/snake.com $(x86_64COSMOOUTPUT)/bin/first_person_maze.com
 
 clean:
 	rm -rf $(OUTPUT)/ $(GENERATED)/
@@ -57,14 +52,13 @@ $(GENERATED)/raylib.h: $(x86_64COSMOOUTPUT)/include/raylib.h | $(GENERATED)/
 
 # Generated files
 $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBGEN)/libraylib.so.headerwrapper.h $(LIBRAYLIBGEN)/libraylib.so.nativewrapper.c &: $(x86_64GLIBCOUTPUT)/lib/libraylib.so $(x86_64GLIBCOUTPUT)/bin/ctags $(GENERATED)/raylib.h | $(LIBRAYLIBGEN)/
-	$(PYTHON) third_party/Implib.so/implib-gen.py $< -o $(LIBRAYLIBGEN)/ --ctags $(x86_64GLIBCOUTPUT)/bin/ctags --input-headers $(GENERATED)/raylib.h --windows-library libraylib_wrapper.dll
+	$(PYTHON) third_party/Implib.so/implib-gen.py $< -o $(LIBRAYLIBGEN)/ --ctags $(x86_64GLIBCOUTPUT)/bin/ctags --input-headers $(GENERATED)/raylib.h
 	rm $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S
 
 $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S &: $(x86_64GLIBCOUTPUT)/lib/libraylib_wrapper_temp.so | $(LIBRAYLIBWRAPPERGEN)/
-	$(PYTHON) third_party/Implib.so/implib-gen.py $< -o $(LIBRAYLIBWRAPPERGEN)/ --dlopen-callback cosmo_dlopen_wrapper --dlsym-callback cosmo_dlsym
+	$(PYTHON) third_party/Implib.so/implib-gen.py $< -o $(LIBRAYLIBWRAPPERGEN)/ --dlopen-callback cosmo_dlopen_wrapper --dlsym-callback cosmo_dlsym --library-load-name libraylib_wrapper.so
 	mv --update $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper_temp.so.tramp.S $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S
-	sed 's/libraylib_wrapper_temp\.so/libraylib_wrapper.so/' $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper_temp.so.init.c > $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c
-	rm $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper_temp.so.init.c
+	mv --update $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper_temp.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c
 
 
 # Shared libaries
