@@ -1,10 +1,10 @@
-# TODO: Allow hiding windows console
 # TODO: Allow finding libraylib_wrapper.so in exec folder, just like libraylib_wrapper.dll
 # TODO: Use pointers instead of structs for wrapper returns
 # TODO: Pack wrapper libraries into zipos
-# TODO: Prevent first_person_maze.com from rebuilding despite not dependancy changes
+# TODO: Prevent first_person_maze.com from rebuilding despite not dependency changes
 # TODO: Move raylib into cosmo exec with only glfw in wrapper libraries
 # TODO: Support Windows building?
+# TODO: Allow using a windows console if desired
 # TODO: Support aarch64 for Linux and MacOS
 # TODO: Support FreeBSD and NetBSD
 # TODO: Ensure Musl Libc works
@@ -31,8 +31,8 @@ x86_64MINGWOUTPUT = $(OUTPUT)/x86_64-pc-windows-gnu/
 LIBRAYLIBGEN = $(GENERATED)/libraylib/
 LIBRAYLIBWRAPPERGEN = $(GENERATED)/libraylib_wrapper/
 
-RAYLIBCOSMOCC = $(x86_64COSMOCC) -mcosmo src/dlopen_wrapper.c -I$(x86_64COSMOOUTPUT)/include/ $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S
-RAYLIBDEPS = $(x86_64COSMOOUTPUT)/include/raylib.h $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S
+RAYLIBCOSMOCC = $(x86_64COSMOCC) -mcosmo src/cosmo_gui_setup.c -I$(x86_64COSMOOUTPUT)/include/ $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S -DDISABLECONSOLE
+RAYLIBDEPS = src/cosmo_gui_setup.c $(x86_64COSMOOUTPUT)/include/raylib.h $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S
 
 .PHONY: build clean
 
