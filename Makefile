@@ -1,4 +1,3 @@
-# TODO: Allow finding libraylib_wrapper.so in exec folder, just like libraylib_wrapper.dll
 # TODO: Use pointers instead of structs for wrapper returns
 # TODO: Pack wrapper libraries into zipos
 # TODO: Prevent first_person_maze.com from rebuilding despite not dependency changes
@@ -10,8 +9,9 @@
 # TODO: Ensure Musl Libc works
 # TODO: Replace dlopen with custom ipc for x86-64 OpenBSD and MacOS?
 
-# For Linux, a folder with libraylib_wrapper.so from $(x86_64GLIBCOUTPUT)/bin/ needs to in LD_LIBRARY_PATH.
-# For Windows, libraylib_wrapper.dll from $(x86_64MINGWOUTPUT)/lib/ needs to be in the same folder as the com file.
+# For Linux, libraylib_wrapper.so from $(x86_64GLIBCOUTPUT)/bin/ can either be in the same folder
+# as the com file or in folder that is in LD_LIBRARY_PATH.
+# For Windows, libraylib_wrapper.dll from $(x86_64MINGWOUTPUT)/lib/ needs to be in the same folder.
 
 x86_64COSMOCC ?= x86_64-unknown-cosmo-cc
 x86_64GLIBCCC ?= gcc
@@ -82,7 +82,7 @@ $(x86_64MINGWOUTPUT)/lib/libraylib_wrapper.dll: $(LIBRAYLIBGEN)/libraylib.so.nat
 
 
 # Static libaries
-# These does not actually depend on the each other and the shared wrapper but cannot be built at the same time
+# These do not actually depend on each other or the shared wrapper but cannot be built at the same time
 $(x86_64GLIBCOUTPUT)/lib/libraylib.a: $(x86_64GLIBCOUTPUT)/lib/libraylib.so | $(x86_64GLIBCOUTPUT)/lib/
 	$(MAKE) -C $(RAYLIB)/src clean
 	$(MAKE) -C $(RAYLIB)/src CC=$(x86_64GLIBCCC) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=LINUX RAYLIB_LIBTYPE=STATIC
