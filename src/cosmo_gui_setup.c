@@ -20,6 +20,7 @@ static void cosmo_force_gui(void) {
 }
 #endif
 
+static char libPath[] = "/tmp/XXXXXX.ext";
 static char linuxLibPath[] = "/tmp/XXXXXX.so";
 static char windowsLibPath[] = "/tmp/XXXXXX.dll";
 static int linuxLibPathSuffixLen = 3; // strlen(".so")
@@ -34,15 +35,14 @@ void delete_library(void) {
 }
 
 static char *extract_lib(const char *filename) {
-  char *libPath;
   int libPathSuffixLen;
   char zipPath[PATH_MAX] = "/zip/";
   strlcpy(zipPath + 5, filename, sizeof(zipPath) - 5); // strlen("/zip/")
   if (IsLinux()) {
-    libPath = linuxLibPath;
+    strlcpy(libPath, linuxLibPath, sizeof(libPath));
     libPathSuffixLen = linuxLibPathSuffixLen;
   } else if (IsWindows()) {
-    libPath = windowsLibPath;
+    strlcpy(libPath, windowsLibPath, sizeof(libPath));
     libPathSuffixLen = windowsLibPathSuffixLen;
   } else {
     fprintf(stderr, "Dynamic loading is not supported on this OS");
@@ -85,11 +85,13 @@ void *cosmo_dlopen_wrapper(const char *filename) {
   char *tmpLib = extract_lib(filename);
   void *handle = cosmo_dlopen(tmpLib, RTLD_LAZY);
   if (handle) {
+    //printf("DLOPEN_WRAPPER opened %s using zipos copy: %s, %p\n", filename, tmpLib, handle);
     return handle;
   }
 
   handle = cosmo_dlopen(filename, RTLD_LAZY);
   if (handle) {
+    //printf("DLOPEN_WRAPPER opened %s using system copy: %s, %p\n", filename, tmpLib, handle);
     return handle;
   }
 
@@ -104,6 +106,7 @@ void *cosmo_dlopen_wrapper(const char *filename) {
   strlcpy(path, execPath, sizeof(path));
   strlcpy(path + offset, filename, sizeof(path) - offset);
 
+  //printf("DLOPEN_WRAPPER opened %s using local copy: %s, %p\n", filename, tmpLib, handle);
   return cosmo_dlopen(path, RTLD_LAZY);
 #else
   return dlopen(filename, RTLD_LAZY);
