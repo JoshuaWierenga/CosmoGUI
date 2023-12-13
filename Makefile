@@ -11,8 +11,8 @@
 # TODO: Support using imgui on its own
 
 # Building rlImGui is a bit of a pain currently as it is meant to be above ImGui and raylib
-# ln -s third_party/imgui third_party/rlImGui/imgui
-# ln -s third_party/raylib third_party/rlImGui/raylib
+# chmod u+x third_party/rlImGui/premake5
+# (cd third_party/rlImGui && ln -s ../imgui imgui && ln -s ../raylib raylib)
 
 x86_64COSMOAR ?= x86_64-unknown-cosmo-ar
 x86_64COSMOCC ?= x86_64-unknown-cosmo-cc
@@ -155,17 +155,22 @@ $(x86_64MINGWOUTPUT)/lib/librlImGui.a: $(x86_64GLIBCOUTPUT)/lib/librlImGui.a | $
 $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o: src/cosmo_gui_setup.c | $(x86_64COSMOOUTPUT)/lib/
 	$(x86_64COSMOCC) -mcosmo -c -o $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o src/cosmo_gui_setup.c -DDISABLECONSOLE
 
-$(x86_64COSMOOUTPUT)/lib/libraylib_wrapper.a: $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S $(x86_64COSMOOUTPUT)/include/raylib.h $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o | $(x86_64COSMOOUTPUT)/lib/
+$(x86_64COSMOOUTPUT)/lib/libraylib_wrapper.o: $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(x86_64COSMOOUTPUT)/include/raylib.h | $(x86_64COSMOOUTPUT)/lib/
 	$(x86_64COSMOCC) -mcosmo -c -o $(x86_64COSMOOUTPUT)/lib/libraylib_wrapper.o $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c -I$(x86_64COSMOOUTPUT)/include/
+
+$(x86_64COSMOOUTPUT)/lib/libraylib_wrapper.a: $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o $(x86_64COSMOOUTPUT)/lib/libraylib_wrapper.o | $(x86_64COSMOOUTPUT)/lib/
 	$(x86_64COSMOCC) -c -o $(x86_64COSMOOUTPUT)/lib/libraylib_wrapper_init.o $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.init.c
 	$(x86_64COSMOCC) -c -o $(x86_64COSMOOUTPUT)/lib/libraylib_wrapper_tramp.o $(LIBRAYLIBWRAPPERGEN)/libraylib_wrapper.so.tramp.S
-	$(x86_64COSMOAR) rcs $@ $(x86_64COSMOOUTPUT)/lib/*
+	$(x86_64COSMOAR) rcs $@ $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o $(x86_64COSMOOUTPUT)/lib/libraylib*.o
+	rm $(x86_64COSMOOUTPUT)/lib/libraylib_wrapper_*.o
 
-$(x86_64COSMOOUTPUT)/lib/librlImGui_wrapper.a: $(LIBRLIMGUIGEN)/librlImGui.a.cosmowrapper.c $(LIBRLIMGUIWRAPPERGEN)/librlImGui_wrapper.so.init.c $(LIBRLIMGUIWRAPPERGEN)/librlImGui_wrapper.so.tramp.S $(x86_64COSMOOUTPUT)/include/imgui.h $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o | $(x86_64COSMOOUTPUT)/lib/
+$(x86_64COSMOOUTPUT)/lib/librlImGui_wrapper.a: $(LIBRLIMGUIGEN)/librlImGui.a.cosmowrapper.c $(LIBRLIMGUIWRAPPERGEN)/librlImGui_wrapper.so.init.c $(LIBRLIMGUIWRAPPERGEN)/librlImGui_wrapper.so.tramp.S $(x86_64COSMOOUTPUT)/include/imgui.h $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o $(x86_64COSMOOUTPUT)/lib/libraylib_wrapper.o | $(x86_64COSMOOUTPUT)/lib/
 	$(x86_64COSMOC++) -c -o $(x86_64COSMOOUTPUT)/lib/librlImGui_wrapper.o $(LIBRLIMGUIGEN)/librlImGui.a.cosmowrapper.c -I$(x86_64COSMOOUTPUT)/include/
 	$(x86_64COSMOCC) -c -o $(x86_64COSMOOUTPUT)/lib/librlImGui_wrapper_init.o $(LIBRLIMGUIWRAPPERGEN)/librlImGui_wrapper.so.init.c
 	$(x86_64COSMOCC) -c -o $(x86_64COSMOOUTPUT)/lib/librlImGui_wrapper_tramp.o $(LIBRLIMGUIWRAPPERGEN)/librlImGui_wrapper.so.tramp.S
-	$(x86_64COSMOAR) rcs $@ $(x86_64COSMOOUTPUT)/lib/*
+	$(x86_64COSMOAR) rcs $@ $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o $(x86_64COSMOOUTPUT)/lib/libraylib_wrapper.o $(x86_64COSMOOUTPUT)/lib/librlImGui*.o
+	rm $(x86_64COSMOOUTPUT)/lib/librlImGui*.o
+
 
 # Executables
 $(x86_64GLIBCOUTPUT)/bin/ctags: | $(x86_64GLIBCOUTPUT)/bin/

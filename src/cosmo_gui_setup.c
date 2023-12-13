@@ -26,7 +26,7 @@ static char windowsLibPath[] = "/tmp/XXXXXX.dll";
 static int linuxLibPathSuffixLen = 3; // strlen(".so")
 static int windowsLibPathSuffixLen = 4; // strlen(".dll")
 
-void delete_library(void) {
+static void delete_library(void) {
   if (IsLinux()) {
     unlink(linuxLibPath);
   } else if (IsWindows()) {
