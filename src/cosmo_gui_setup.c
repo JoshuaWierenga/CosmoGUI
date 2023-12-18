@@ -1,5 +1,6 @@
 #ifdef __COSMOPOLITAN__
 #include <cosmo.h>
+#include <libc/nt/dll.h>
 #include <libc/nt/events.h>
 #include <libc/nt/struct/msg.h>
 #endif
@@ -26,13 +27,14 @@ static char windowsLibPath[] = "/tmp/XXXXXX.dll";
 static int linuxLibPathSuffixLen = 3; // strlen(".so")
 static int windowsLibPathSuffixLen = 4; // strlen(".dll")
 
-static void delete_library(void) {
+// TODO: Support deletion with more than one loaded library
+/*static void delete_library(void) {
   if (IsLinux()) {
     unlink(linuxLibPath);
   } else if (IsWindows()) {
     unlink(windowsLibPath);
   }
-}
+}*/
 
 static char *extract_lib(const char *filename) {
   int libPathSuffixLen;
@@ -75,7 +77,7 @@ static char *extract_lib(const char *filename) {
     exit(1);
   }
 
-  atexit(delete_library);
+  //atexit(delete_library);
   return libPath;
 }
 #endif
@@ -83,15 +85,14 @@ static char *extract_lib(const char *filename) {
 void *cosmo_dlopen_wrapper(const char *filename) {
 #ifdef __COSMOPOLITAN__
   char *tmpLib = extract_lib(filename);
-  void *handle = cosmo_dlopen(tmpLib, RTLD_LAZY);
-  if (handle) {
+  void *handle;
+  if (tmpLib && (handle = cosmo_dlopen(tmpLib, RTLD_LAZY))) {
     //printf("DLOPEN_WRAPPER opened %s using zipos copy: %s, %p\n", filename, tmpLib, handle);
     return handle;
   }
 
-  handle = cosmo_dlopen(filename, RTLD_LAZY);
-  if (handle) {
-    //printf("DLOPEN_WRAPPER opened %s using system copy: %s, %p\n", filename, tmpLib, handle);
+  if ((handle = cosmo_dlopen(filename, RTLD_LAZY))) {
+    //printf("DLOPEN_WRAPPER opened %s using system copy: %s, %p\n", filename, filename, handle);
     return handle;
   }
 
@@ -106,15 +107,25 @@ void *cosmo_dlopen_wrapper(const char *filename) {
   strlcpy(path, execPath, sizeof(path));
   strlcpy(path + offset, filename, sizeof(path) - offset);
 
-  //printf("DLOPEN_WRAPPER opened %s using local copy: %s, %p\n", filename, tmpLib, handle);
-  return cosmo_dlopen(path, RTLD_LAZY);
+  if ((handle = cosmo_dlopen(path, RTLD_LAZY))) {
+    //printf("DLOPEN_WRAPPER opened %s using local copy: %s, %p\n", filename, path, handle);
+    return handle;
+  }
+
+  return NULL;
 #else
   return dlopen(filename, RTLD_LAZY);
 #endif
 }
 
-#ifndef __COSMOPOLITAN__
-void *cosmo_dlsym(void *handle, const char *symbol) {
+// Unlike cosmo_dlsym, this returns functions with the ms_abi calling convention on windows
+void *cosmo_dlsym_wrapper(void *handle, const char *symbol) {
+#ifdef __COSMOPOLITAN__
+  if (IsWindows()) {
+    return GetProcAddress((uintptr_t)handle, symbol);
+  }
+  return cosmo_dlsym(handle, symbol);
+#else
   return dlsym(handle, symbol);
-}
 #endif
+}

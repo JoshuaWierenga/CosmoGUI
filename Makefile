@@ -1,4 +1,3 @@
-# TODO: Restore windows support
 # TODO: Fix raygui build issues
 # TODO: Restore basic rlimgui support
 # TODO: Add full rlimgui support
@@ -43,12 +42,12 @@ LIBRAYLIBGEN = $(GENERATED)/libraylib/
 LIBRAYLIBGEN2 = $(GENERATED)/libraylib2/
 #LIBRLIMGUIGEN = $(GENERATED)/librlImGui/
 
-RAYLIBDEPS = src/cosmo_gui_setup.c  $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S $(x86_64COSMOOUTPUT)/include/raylib.h $(x86_64GLIBCOUTPUT)/lib/libraylib.so
-RAYLIBCOSMO = -mcosmo src/cosmo_gui_setup.c $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S -I$(x86_64COSMOOUTPUT)/include/
+RAYLIBDEPS = src/cosmo_gui_setup.c $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S $(x86_64COSMOOUTPUT)/include/raylib.h $(x86_64GLIBCOUTPUT)/lib/libraylib.so $(x86_64MINGWOUTPUT)/lib/libraylib.dll
+RAYLIBCOSMO = -mcosmo src/cosmo_gui_setup.c $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S -I$(x86_64COSMOOUTPUT)/include/ -DDISABLECONSOLE
 #RLIMGUIDEPS = $(x86_64COSMOOUTPUT)/include/imconfig.h $(x86_64COSMOOUTPUT)/include/imgui.h $(x86_64COSMOOUTPUT)/include/rlImGui.h $(x86_64COSMOOUTPUT)/lib/librlImGui_wrapper.a $(x86_64GLIBCOUTPUT)/lib/librlImGui_wrapper.so $(x86_64MINGWOUTPUT)/lib/librlImGui_wrapper.dll
 #RLIMGUICOSMO = -I$(x86_64COSMOOUTPUT)/include/ -L$(x86_64COSMOOUTPUT)/lib/ -lrlImGui_wrapper
 
-RAYLIBZIP = zip -jq $@ $(x86_64GLIBCOUTPUT)/lib/libraylib.so
+RAYLIBZIP = zip -jq $@ $(x86_64GLIBCOUTPUT)/lib/libraylib.so $(x86_64MINGWOUTPUT)/lib/libraylib.dll
 #RLIMGUIZIP = zip -jq $@ $(x86_64GLIBCOUTPUT)/lib/librlImGui_wrapper.so $(x86_64MINGWOUTPUT)/lib/librlImGui_wrapper.dll
 
 .PHONY: build clean
@@ -66,8 +65,12 @@ clean:
 $(x86_64COSMOOUTPUT)/include/ray%.h: | $(x86_64COSMOOUTPUT)/include/
 	cp --update $(RAYLIB)/src/$(notdir $@) $@
 
-$(x86_64COSMOOUTPUT)/include/im%.h: | $(x86_64COSMOOUTPUT)/include/
-	cp --update $(IMGUI)/$(notdir $@) $@
+
+$(GENERATED)/raylib.h: $(x86_64COSMOOUTPUT)/include/raylib.h | $(GENERATED)/
+	$(x86_64COSMOCC) -E -o $@ $<
+
+#$(x86_64COSMOOUTPUT)/include/im%.h: | $(x86_64COSMOOUTPUT)/include/
+#	cp --update $(IMGUI)/$(notdir $@) $@
 
 #$(x86_64COSMOOUTPUT)/include/rl%.h: | $(x86_64COSMOOUTPUT)/include/
 #	cp --update $(RLIMGUI)/$(notdir $@) $@
@@ -76,8 +79,8 @@ $(x86_64COSMOOUTPUT)/include/im%.h: | $(x86_64COSMOOUTPUT)/include/
 #	cp --update $(RLIMGUI)/extras/IconsFontAwesome6.h $@
 
 # Generated files
-$(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S &: $(x86_64GLIBCOUTPUT)/lib/libraylib.so | $(LIBRAYLIBGEN)/
-	$(PYTHON) third_party/Implib.so/implib-gen.py $< -o $(LIBRAYLIBGEN)/ --dlopen-callback cosmo_dlopen_wrapper --dlsym-callback cosmo_dlsym --library-load-name libraylib.so
+$(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.c $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.cosmowrapper.h $(LIBRAYLIBGEN)/libraylib.so.tramp.S &: $(x86_64GLIBCOUTPUT)/lib/libraylib.so $(x86_64GLIBCOUTPUT)/bin/ctags $(GENERATED)/raylib.h | $(LIBRAYLIBGEN)/
+	$(PYTHON) third_party/Implib.so/implib-gen.py $< -o $(LIBRAYLIBGEN)/ --dlopen-callback cosmo_dlopen_wrapper --dlsym-callback cosmo_dlsym_wrapper --library-load-name libraylib.so --symbol-prefix real_ --ctags $(x86_64GLIBCOUTPUT)/bin/ctags --input-headers $(GENERATED)/raylib.h
 
 #$(LIBRLIMGUIGEN)/librlImGui.a.cosmowrapper.c $(LIBRLIMGUIGEN)/librlImGui.a.headerwrapper.h $(LIBRLIMGUIGEN)/librlImGui.a.nativewrapper.c &: $(x86_64GLIBCOUTPUT)/lib/librlImGui.a $(x86_64GLIBCOUTPUT)/bin/ctags $(x86_64COSMOOUTPUT)/include/imconfig.h $(GENERATED)/imgui.h $(x86_64COSMOOUTPUT)/include/extras/IconsFontAwesome6.h $(x86_64COSMOOUTPUT)/include/rlImGui.h | $(LIBRLIMGUIGEN)/
 #	$(PYTHON) third_party/Implib.so/implib-gen.py $< -o $(LIBRLIMGUIGEN)/ --ctags $(x86_64GLIBCOUTPUT)/bin/ctags --input-headers $(GENERATED)/imgui.h $(x86_64COSMOOUTPUT)/include/rlImGui.h
@@ -85,10 +88,16 @@ $(LIBRAYLIBGEN)/libraylib.so.init.c $(LIBRAYLIBGEN)/libraylib.so.tramp.S &: $(x8
 
 
 # Shared libaries
+# These do not actually depend on each other but cannot be built at the same time
 $(x86_64GLIBCOUTPUT)/lib/libraylib.so: | $(x86_64GLIBCOUTPUT)/lib/
 	$(MAKE) -C $(RAYLIB)/src clean
 	$(MAKE) -C $(RAYLIB)/src CC=$(x86_64GLIBCCC) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=LINUX RAYLIB_LIBTYPE=SHARED
-	cp --update $(RAYLIB)/src/libraylib.so $(dir $@)
+	cp --update $(RAYLIB)/src/libraylib.so $@
+
+$(x86_64MINGWOUTPUT)/lib/libraylib.dll: $(x86_64GLIBCOUTPUT)/lib/libraylib.so | $(x86_64MINGWOUTPUT)/lib/
+	$(MAKE) -C $(RAYLIB)/src clean
+	$(MAKE) -C $(RAYLIB)/src CC=$(x86_64MINGWCC) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=WINDOWS RAYLIB_LIBTYPE=SHARED
+	cp --update $(RAYLIB)/src/raylib.dll $@
 
 
 # Static libaries
@@ -110,6 +119,10 @@ $(x86_64GLIBCOUTPUT)/lib/libraylib.so: | $(x86_64GLIBCOUTPUT)/lib/
 
 
 # Executables
+$(x86_64GLIBCOUTPUT)/bin/ctags: | $(x86_64GLIBCOUTPUT)/bin/
+	cd third_party/ctags && ./autogen.sh && ./configure --prefix $(PWD)/$(x86_64GLIBCOUTPUT)/
+	$(MAKE) -C third_party/ctags install
+
 $(x86_64COSMOOUTPUT)/bin/shapes_basic_shapes.com: $(RAYLIB)/examples/shapes/shapes_basic_shapes.c $(RAYLIBDEPS) | $(x86_64COSMOOUTPUT)/bin/
 	$(x86_64COSMOCC) -o $@ $< $(RAYLIBCOSMO)
 	$(RAYLIBZIP)
