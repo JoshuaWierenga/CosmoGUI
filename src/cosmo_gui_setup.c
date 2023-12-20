@@ -39,7 +39,7 @@ static int windowsLibPathSuffixLen = 4; // strlen(".dll")
 static char *extract_lib(const char *filename) {
   int libPathSuffixLen;
   char zipPath[PATH_MAX] = "/zip/";
-  strlcpy(zipPath + 5, filename, sizeof(zipPath) - 5); // strlen("/zip/")
+  strlcat(zipPath, filename, sizeof(zipPath));
   if (IsLinux()) {
     strlcpy(libPath, linuxLibPath, sizeof(libPath));
     libPathSuffixLen = linuxLibPathSuffixLen;
