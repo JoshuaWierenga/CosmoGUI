@@ -1,4 +1,3 @@
-# TODO: Add full rlimgui support
 # TODO: Prevent first_person_maze.com from rebuilding despite not dependency changes
 # TODO: Remove need for building shared libraries for Implib.so when using static libraries, rlImGui already does not use one. Not really possible now, I guess just make sure static libraries work with Implib.so
 # TODO: Rewrite extract_lib based on zip.c from llamafile
@@ -56,7 +55,7 @@ RLIMGUIZIP = zip -jq $@ $(LIBRLIMGUIOUTDEP)
 
 .PHONY: build clean
 
-build: $(x86_64COSMOOUTPUT)/bin/shapes_basic_shapes.com $(x86_64COSMOOUTPUT)/bin/core_3d_camera_split_screen.com $(x86_64COSMOOUTPUT)/bin/controls_test_suite.com $(x86_64COSMOOUTPUT)/bin/snake.com $(x86_64COSMOOUTPUT)/bin/first_person_maze.com $(x86_64COSMOOUTPUT)/bin/rlimgui_simple.com
+build: $(x86_64COSMOOUTPUT)/bin/shapes_basic_shapes.com $(x86_64COSMOOUTPUT)/bin/core_3d_camera_split_screen.com $(x86_64COSMOOUTPUT)/bin/controls_test_suite.com $(x86_64COSMOOUTPUT)/bin/snake.com $(x86_64COSMOOUTPUT)/bin/first_person_maze.com $(x86_64COSMOOUTPUT)/bin/rlimgui_simple.com $(x86_64COSMOOUTPUT)/bin/rlimgui_editor.com
 
 clean:
 	rm -rf $(OUTPUT)/ $(GENERATED)/
@@ -102,7 +101,7 @@ $(x86_64MINGWOUTPUT)/lib/librlImGui.dll: $(x86_64MINGWOUTPUT)/lib/libraylib.a $(
 
 
 # Static libaries
-# These do not actually depend on each other or any shared libraries but cannot be built at the same time
+# None of these actually depend on each other but cannot be built at the same time due to building in-tree
 $(x86_64GLIBCOUTPUT)/lib/libraylib.a: | $(x86_64GLIBCOUTPUT)/lib/
 	$(MAKE) -C $(RAYLIB)/src clean
 	$(MAKE) -C $(RAYLIB)/src CC=$(x86_64GLIBCCC) PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=LINUX RAYLIB_LIBTYPE=STATIC
@@ -142,7 +141,7 @@ $(x86_64COSMOOUTPUT)/bin/core_3d_camera_split_screen.com: $(RAYLIB)/examples/cor
 	$(x86_64COSMOCC) -o $@ $< $(RAYLIBCOSMO)
 	$(RAYLIBZIP)
 
-$(x86_64COSMOOUTPUT)/bin/controls_test_suite.com: $(RAYGUI)/examples/controls_test_suite/controls_test_suite.c src/raygui_fix.c $(RAYLIBDEPS) | $(x86_64COSMOOUTPUT)/bin/
+$(x86_64COSMOOUTPUT)/bin/controls_test_suite.com: $(RAYGUI)/examples/controls_test_suite/controls_test_suite.c src/raylib_varargs_fix.c $(RAYLIBDEPS) | $(x86_64COSMOOUTPUT)/bin/
 	$(x86_64COSMOCC) -o $@ $< $(word 2,$^) $(RAYLIBCOSMO)
 	$(RAYLIBZIP)
 
@@ -158,3 +157,8 @@ $(x86_64COSMOOUTPUT)/bin/first_person_maze.com $(x86_64COSMOOUTPUT)/bin/resource
 $(x86_64COSMOOUTPUT)/bin/rlimgui_simple.com: $(RLIMGUI)/examples/simple.cpp $(x86_64COSMOOUTPUT)/include/raymath.h $(RLIMGUIDEPS) | $(x86_64COSMOOUTPUT)/bin/
 	$(x86_64COSMOC++) -o $@ $< $(RLIMGUICOSMO)
 	$(RLIMGUIZIP)
+
+$(x86_64COSMOOUTPUT)/bin/rlimgui_editor.com $(x86_64COSMOOUTPUT)/bin/resources/parrots.png &: $(RLIMGUI)/examples/editor.cpp src/raylib_varargs_fix.c $(x86_64COSMOOUTPUT)/include/raymath.h $(x86_64COSMOOUTPUT)/include/rlImGuiColors.h $(RLIMGUIDEPS) | $(x86_64COSMOOUTPUT)/bin/
+	$(x86_64COSMOC++) -o $@ $< $(word 2,$^) $(RLIMGUICOSMO)
+	$(RLIMGUIZIP)
+	cp --update $(RLIMGUI)/resources/parrots.png $(x86_64COSMOOUTPUT)/bin/resources/parrots.png
