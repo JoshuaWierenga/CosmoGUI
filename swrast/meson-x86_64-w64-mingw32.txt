@@ -1,0 +1,13 @@
+[binaries]
+ar = 'x86_64-w64-mingw32-ar'
+c = 'x86_64-w64-mingw32-gcc-posix'
+cpp = 'x86_64-w64-mingw32-g++-posix'
+pkgconfig = 'x86_64-w64-mingw32-pkg-config'
+strip = 'x86_64-w64-mingw32-strip'
+windres = 'x86_64-w64-mingw32-windres'
+
+[host_machine]
+system = 'windows'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'

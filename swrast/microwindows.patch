@@ -1,0 +1,350 @@
+diff --git a/src/Makefile_nr b/src/Makefile_nr
+index 1057d4c..f0f1857 100644
+--- a/src/Makefile_nr
++++ b/src/Makefile_nr
+@@ -9,7 +9,8 @@ ifeq ($(ARCH), )
+ $(info  ARCH= parameter not specified, please use:)
+ $(info  make -f Makefile_nr ARCH=DOS)
+ $(info  make -f Makefile_nr ARCH=CROSSDOS)
+-$(info  make -f Makefile_nr ARCH=MINGW)
++$(info  make -f Makefile_nr ARCH=ALLEGMINGW)
++$(info  make -f Makefile_nr ARCH=WIN32MINGW)
+ $(info  make -f Makefile_nr ARCH=MACOS)
+ $(info  make -f Makefile_nr ARCH=LINUX)
+ $(info  make -f Makefile_nr ARCH=AJAGUAR)
+@@ -33,7 +34,7 @@ CFLAGS += -DDOS_DJGPP=1 -DMSDOS=1 -s
+ INC += -I$(MW_DIR_SRC)/include $(INCLUDE_FLAGS)
+ endif
+ 
+-ifeq ($(ARCH), MINGW)
++ifeq ($(ARCH), ALLEGMINGW)
+ DOSTARGET = Y
+ INC += -I$(MW_DIR_SRC)/include
+ INC += -I/c/MinGW/msys/1.0/local/include/freetype
+@@ -46,6 +47,15 @@ ALLEGRO5 = Y
+ LIBALLEGRO = -lallegro #.dll
+ endif
+ 
++ifeq ($(ARCH), WIN32MINGW)
++WIN32 = Y
++TOOLSPREFIX ?= x86_64-w64-mingw32-
++WIN32INC += -I$(MW_DIR_SRC)/include -I$(MW_DIR_SRC)/nx11/X11-local $(INCLUDE_FLAGS)
++INC += $(WIN32INC)
++CFLAGS += -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast -DMINGW=1 -s
++CLIBS += -lgdi32
++endif
++
+ ifeq ($(ARCH), MACOS)
+ SDL2 = Y
+ CFLAGS += -DUNIX=1 -DMACOSX=1
+@@ -70,8 +80,8 @@ $(info Compiling for $(ARCH))
+ # what to build and tools  ********************************
+ 
+ # uncomment to build microwin or nano-X libraries ano/or demos
+-MICROWIN=Y
+-MICROWINDEMO=Y
++#MICROWIN=Y
++#MICROWINDEMO=Y
+ NANOX=Y
+ NANOXDEMO=Y
+ 
+@@ -141,26 +151,26 @@ CLIBS += $(LIBRARY_FLAGS)
+ ifndef NOEXTLIBS
+ 
+ # set for JPEG image support
+-CFLAGS += -DHAVE_JPEG_SUPPORT=1
+-CLIBS += $(INSTALLED)/lib/libjpeg.a
++#CFLAGS += -DHAVE_JPEG_SUPPORT=1
++#CLIBS += $(INSTALLED)/lib/libjpeg.a
+ #CLIBS += -ljpeg
+ 
+ # set for PNG image support
+-CFLAGS += -DHAVE_PNG_SUPPORT=1
+-CLIBS += $(INSTALLED)/lib/libpng.a $(INSTALLED)/lib/libz.a
++#CFLAGS += -DHAVE_PNG_SUPPORT=1
++#CLIBS += $(INSTALLED)/lib/libpng.a $(INSTALLED)/lib/libz.a
+ #CLIBS += -lpng -lz
+ 
+ # set for PCF or FNT font .gz format
+-CFLAGS += -DHAVE_FNTGZ_SUPPORT=1
+-CFLAGS += -DHAVE_PCFGZ_SUPPORT=1
+-CLIBS += $(INSTALLED)/lib/libz.a
++#CFLAGS += -DHAVE_FNTGZ_SUPPORT=1
++#CFLAGS += -DHAVE_PCFGZ_SUPPORT=1
++#CLIBS += $(INSTALLED)/lib/libz.a
+ #CLIBS += -lz
+ 
+ # set for TTF font support
+-HAVE_FREETYPE_2_SUPPORT = Y
+-CFLAGS += -DHAVE_FREETYPE_2_SUPPORT=1
+-CFLAGS += -DFREETYPE_FONT_DIR=\"$(MW_FONT_DIR)/truetype\"
+-CLIBS += $(INSTALLED)/lib/libfreetype.a $(INSTALLED)/lib/libz.a
++#HAVE_FREETYPE_2_SUPPORT = Y
++#CFLAGS += -DHAVE_FREETYPE_2_SUPPORT=1
++#CFLAGS += -DFREETYPE_FONT_DIR=\"$(MW_FONT_DIR)/truetype\"
++#CLIBS += $(INSTALLED)/lib/libfreetype.a $(INSTALLED)/lib/libz.a
+ #CLIBS += -lfreetype -lz
+ 
+ # set for TIFF image support
+@@ -355,9 +365,9 @@ $(MW_DIR_BIN)/tuxchess.exe: $(TUXOBJS)
+ # clean target ********************************
+ .PHONY: clean
+ 
+-ifeq ($(ARCH), MINGW)
++ifeq ($(filter-out ALLEGMINGW WIN32MINGW,$(ARCH)),)
+ clean:
+-	echo "Cleaning MINGW files"
++	echo "Cleaning $(ARCH) files"
+ 	-rm obj/mwin/*.o 2>/dev/null
+ 	-rm obj/demos/tuxchess/*.o 2>/dev/null
+ 	-rm obj/images/demos/mwin/*.o 2>/dev/null
+@@ -385,8 +395,7 @@ clean:
+ 	echo "Cleaned *.o, *.a, and *.exe files"
+ endif
+ 
+-ifneq ($(ARCH), MINGW)
+-ifneq ($(ARCH), DOS)
++ifneq ($(filter-out ALLEGMINGW WIN32MINGW DOS,$(ARCH)),)
+ clean:
+ 	echo "Cleaning files"
+ 	-rm mwin/*.o
+@@ -410,7 +419,6 @@ clean:
+ 	-$(MAKE) -C nx11 clean
+ 	echo "Cleaned *.o, *.a, and *.exe files"
+ endif
+-endif
+ 
+ ifeq ($(ARCH), DOS)
+ clean:
+@@ -438,7 +446,7 @@ endif
+ 
+ .PHONY: install
+ 
+-ifeq ($(ARCH), MINGW)
++ifeq ($(ARCH), ALLEGMINGW)
+ install:
+ 	cp lib/*.a /local/lib
+ 	cp inc /local/include/mwin
+@@ -451,9 +459,9 @@ install:
+ endif
+ 
+ # export variables for sublevel makefiles
+-export CC CFLAGS AS LD AR STRIP HOSTCC HOSTCFLAGS VERBOSE
++export CC CFLAGS WIN32INC AS LD AR STRIP HOSTCC HOSTCFLAGS VERBOSE
+ export MW_DIR_SRC MW_FONT_DIR
+-export HAVE_FREETYPE_2_SUPPORT VESA SDL2 ALLEGRO4 ALLEGRO5 AJAGUAR X11 FB
++export HAVE_FREETYPE_2_SUPPORT VESA SDL2 WIN32 ALLEGRO4 ALLEGRO5 AJAGUAR X11 FB
+ 
+ # library targets ********************************
+ 
+diff --git a/src/contrib/makefiles_nr/Makefile-drivers b/src/contrib/makefiles_nr/Makefile-drivers
+index 90f1f1d..2415f84 100644
+--- a/src/contrib/makefiles_nr/Makefile-drivers
++++ b/src/contrib/makefiles_nr/Makefile-drivers
+@@ -17,20 +17,7 @@ OBJECTS +=fblin1.o
+ OBJECTS +=fblin2.o
+ OBJECTS +=fblin4.o
+ OBJECTS +=rasterops.o
+-OBJECTS +=osdep.o
+-
+-# screen driver
+-ifeq ($(VESA), Y)
+-      OBJECTS := scr_djvesa.o
+-endif          
+-
+-ifeq ($(ALLEGRO4), Y)
+-      OBJECTS := scr_allegro.o
+-endif
+-
+-ifeq ($(ALLEGRO5), Y)       
+-      OBJECTS := scr_allegro5.o
+-endif
++WINOBJECTS +=osdep.o
+ 
+ # X11
+ ifeq ($(X11), Y)
+@@ -54,47 +41,51 @@ ifeq ($(FB), Y)
+ endif
+ 
+ ifeq ($(SDL2), Y)
+-    OBJECTS += scr_sdl2.o 
+-    OBJECTS += mou_sdl2.o 
++    OBJECTS += scr_sdl2.o
++    OBJECTS += mou_sdl2.o
+     OBJECTS += kbd_sdl2.o
+ endif
+ 
+-#for testing
+-ifeq ($(NOMOUSE), Y)
+-    OBJECTS += mou_null.o
+-endif
+-
+-ifeq ($(NOKBD), Y)
+-    OBJECTS += kbd_null.o
+-endif
+-
+-ifeq ($(NOSCR), Y)
+-    OBJECTS += scr_null.o
+-endif
+-
+-
+-# mouse driver
+-ifeq ($(DOS_DJGPP), Y)
+-    OBJECTS += mou_dos.o
+-endif
+ ifeq ($(ALLEGRO4), Y)
++    OBJECTS += scr_allegro.o
+     OBJECTS += mou_allegro.o
++    OBJECTS += kbd_allegro.o
+ endif
++
+ ifeq ($(ALLEGRO5), Y)
++    OBJECTS += scr_allegro5.o
+     OBJECTS += mou_allegro5.o
+     #OBJECTS += mou_null.o
++    OBJECTS += kbd_allegro5.o
++    #OBJECTS += kbd_null.o
+ endif
+ 
+-# keyboard driver
++ifeq ($(WIN32), Y)
++    WINOBJECTS += scr_win32.o
++    WINOBJECTS += mou_win32.o
++    WINOBJECTS += kbd_win32.o
++endif
++
++# DJGPP DOS
++ifeq ($(VESA), Y)
++      OBJECTS += scr_djvesa.o
++endif
+ ifeq ($(DOS_DJGPP), Y)
++    OBJECTS += mou_dos.o
+     OBJECTS += kbd_dj.o
+ endif
+-ifdef ALLEGRO4
+-    OBJECTS += kbd_allegro.o
++
++#for testing
++ifeq ($(NOMOUSE), Y)
++    OBJECTS += mou_null.o
+ endif
+-ifdef ALLEGRO5
+-    OBJECTS += kbd_allegro5.o
+-    #OBJECTS += kbd_null.o
++
++ifeq ($(NOKBD), Y)
++    OBJECTS += kbd_null.o
++endif
++
++ifeq ($(NOSCR), Y)
++    OBJECTS += scr_null.o
+ endif
+ 
+ all: $(LIB)
+@@ -102,6 +93,11 @@ all: $(LIB)
+ clean:
+ 	rm -f *.o *.a core
+ 
+-$(LIB): $(OBJECTS)
++# Allow including real windows.h
++ifeq ($(WIN32), Y)
++$(WINOBJECTS): %.o: %.c
++	$(CC) $(filter-out $(WIN32INC),$(CFLAGS)) -c $<
++endif
++
++$(LIB): $(OBJECTS) $(WINOBJECTS)
+ #	$(AR) rcs $(MW_DIR_SRC)/lib/$(LIB) $(OBJECTS)
+-	
+diff --git a/src/contrib/makefiles_nr/Makefile-nx11 b/src/contrib/makefiles_nr/Makefile-nx11
+index 5f7ed5e..a1f5110 100644
+--- a/src/contrib/makefiles_nr/Makefile-nx11
++++ b/src/contrib/makefiles_nr/Makefile-nx11
+@@ -4,17 +4,17 @@ LIB=libNX11.a
+ 
+ OBJS = DestWind.o MapWindow.o NextEvent.o OpenDis.o ClDisplay.o\
+ 	Window.o CrGC.o FreeGC.o StName.o Sync.o Flush.o CrWindow.o\
+-	Text.o DrLine.o DrLines.o DrPoint.o DrRect.o DrArc.o\
++	Text.o DrLine.o DrLines.o DrPoint.o DrRect.o DrArc.o Threads.o\
+ 	MapRaised.o RaiseWin.o LowerWin.o FillRct.o CrPixmap.o Clear.o\
+-	MoveWin.o ClearArea.o UnmapWin.o RepWindow.o\
++	MoveWin.o ClearArea.o UnmapWin.o RepWindow.o Extension.o\
+ 	ChWindow.o Backgnd.o BdrWidth.o Border.o PmapBgnd.o\
+ 	fontlist.o font_find.o UnloadFont.o QueryFont.o\
+-	DefCursor.o UndefCurs.o CrCursor.o FontCursor.o\
++	DefCursor.o UndefCurs.o CrCursor.o FontCursor.o FontInfo.o\
+ 	CrBFData.o CrPFBData.o Region.o SelInput.o Atom.o\
+ 	QueryTree.o Image.o WindowProperty.o Misc.o SetWMProps.o Bell.o\
+ 	Copy.o SetClip.o Visual.o StrToText.o SetAttributes.o FillPolygon.o\
+ 	StrKeysym.o ChProperty.o QueryPointer.o ErrorHandler.o\
+-	ListPix.o GetGeom.o SetIFocus.o Shape.o\
++	ListPix.o GetGeom.o SetIFocus.o SetWMProto.o Shape.o\
+ 	ClassHint.o Text16.o TextExt.o\
+ 	AllocColor.o ParseColor.o QueryColor.o Colormap.o Colorname.o\
+ 	Selection.o XMisc.o Free.o stub.o
+diff --git a/src/demos/nanox/demo-font.c b/src/demos/nanox/demo-font.c
+index 2968216..c1e1682 100644
+--- a/src/demos/nanox/demo-font.c
++++ b/src/demos/nanox/demo-font.c
+@@ -11,7 +11,7 @@
+  */
+ #include <stdio.h>
+ #include <stdlib.h>
+-#if UNIX | DOS_DJGPP | EMSCRIPTEN
++#if UNIX | DOS_DJGPP | EMSCRIPTEN | MINGW
+ #include <time.h>
+ #endif
+ #define MWINCLUDECOLORS
+diff --git a/src/demos/nanox/landmine.c b/src/demos/nanox/landmine.c
+index bd3b8f2..db68d6b 100644
+--- a/src/demos/nanox/landmine.c
++++ b/src/demos/nanox/landmine.c
+@@ -8,7 +8,7 @@
+ #include <stdarg.h>
+ #include <stdlib.h>
+ #include <string.h>
+-#if UNIX | DOS_DJGPP | EMSCRIPTEN
++#if UNIX | DOS_DJGPP | EMSCRIPTEN | MINGW
+ #include <fcntl.h>
+ #include <unistd.h>
+ #include <time.h>
+diff --git a/src/drivers/kbd_win32.c b/src/drivers/kbd_win32.c
+index 8e563d7..8372831 100644
+--- a/src/drivers/kbd_win32.c
++++ b/src/drivers/kbd_win32.c
+@@ -8,7 +8,7 @@
+ #include <stdio.h>
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+-#include "..\include\device.h"
++#include "../include/device.h"
+ 
+ static int  winkbd_Open(KBDDEVICE *pkd);
+ static void winkbd_Close(void);
+diff --git a/src/drivers/mou_win32.c b/src/drivers/mou_win32.c
+index e814421..5be82a6 100644
+--- a/src/drivers/mou_win32.c
++++ b/src/drivers/mou_win32.c
+@@ -7,7 +7,7 @@
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <windowsx.h>
+-#include "..\include\device.h"
++#include "../include/device.h"
+ 
+ #define	SCALE		3	/* default scaling factor for acceleration */
+ #define	THRESH		5	/* default threshhold for acceleration */
+diff --git a/src/drivers/scr_win32.c b/src/drivers/scr_win32.c
+index 3f4f009..61f782a 100644
+--- a/src/drivers/scr_win32.c
++++ b/src/drivers/scr_win32.c
+@@ -14,8 +14,8 @@
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <wingdi.h>
+-#include "..\include\device.h"
+-#include "..\include\genfont.h"
++#include "../include/device.h"
++#include "../include/genfont.h"
+ #include "fb.h"
+ #include "genmem.h"
+ 

@@ -17,22 +17,25 @@ x86_64MINGWC++ ?= x86_64-w64-mingw32-g++
 
 PYTHON ?= python3
 
+x86_64COSMOOUTPUT = $(OUTPUT)/x86_64-unknown-cosmo/
+x86_64GLIBCOUTPUT = $(OUTPUT)/x86_64-unknown-linux-gnu/
+x86_64MINGWOUTPUT = $(OUTPUT)/x86_64-pc-windows-gnu/
+
 OUTPUT ?= output/
 GENERATED ?= src/generated/
 
-COMMONDEPS = $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o
-
 .PHONY: build clean
 
-build: raylibbuild
+build: raylibbuild swrastbuild
 
-clean:
-	rm -rf $(OUTPUT)/ $(GENERATED)/
+clean: raylibclean swrastclean
+	rm -rf $(OUTPUT)/
 
 %/:
 	mkdir -p $@
 
 include raylib.mk
+include swrast.mk
 
 
 # Static libaries

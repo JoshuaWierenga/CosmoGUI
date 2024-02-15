@@ -11,9 +11,6 @@ RAYLIB = third_party/raylib/
 RAYGUI = third_party/raygui/
 RAYGAMES = third_party/raylib-games/
 RLIMGUI = third_party/rlImGui/
-x86_64COSMOOUTPUT = $(OUTPUT)/x86_64-unknown-cosmo/
-x86_64GLIBCOUTPUT = $(OUTPUT)/x86_64-unknown-linux-gnu/
-x86_64MINGWOUTPUT = $(OUTPUT)/x86_64-pc-windows-gnu/
 LIBRAYLIBGEN = $(GENERATED)/libraylib/
 LIBRLIMGUIGEN = $(GENERATED)/librlImGui/
 
@@ -31,9 +28,14 @@ RLIMGUICOSMO = -I$(x86_64COSMOOUTPUT)/include/ $(COMMONDEPS) $(LIBRLIMGUISRCDEP)
 RAYLIBZIP = zip -jq $@ $(LIBRAYLIBOUTDEP)
 RLIMGUIZIP = zip -jq $@ $(LIBRLIMGUIOUTDEP)
 
-.PHONY: raylibbuild
+COMMONDEPS = $(x86_64COSMOOUTPUT)/lib/cosmo_gui_setup.o
+
+.PHONY: raylibbuild raylibclean
 
 raylibbuild: $(x86_64COSMOOUTPUT)/bin/shapes_basic_shapes.com $(x86_64COSMOOUTPUT)/bin/core_3d_camera_split_screen.com $(x86_64COSMOOUTPUT)/bin/controls_test_suite.com $(x86_64COSMOOUTPUT)/bin/snake.com $(x86_64COSMOOUTPUT)/bin/first_person_maze.com $(x86_64COSMOOUTPUT)/bin/rlimgui_simple.com $(x86_64COSMOOUTPUT)/bin/rlimgui_editor.com
+
+raylibclean:
+	rm -rf $(GENERATED)/
 
 
 # Headers

@@ -1,0 +1,11 @@
+prefix=@PREFIX@
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: nx11
+Description: X11 Emulation Library
+Version: 0.47dev+
+
+Requires:
+Libs: -L${libdir} -lnano-X -lNX11
+Cflags: -I${includedir}

@@ -19,3 +19,18 @@
 [submodule "third_party/imgui"]
 	path = third_party/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "third_party/xorgproto"]
+	path = third_party/xorgproto
+	url = https://gitlab.freedesktop.org/xorg/proto/xorgproto.git
+[submodule "third_party/libx11"]
+	path = third_party/libx11
+	url = https://gitlab.freedesktop.org/xorg/lib/libx11.git
+[submodule "third_party/microwindows"]
+	path = third_party/microwindows
+	url = https://github.com/ghaerr/microwindows.git
+[submodule "third_party/mesa"]
+	path = third_party/mesa
+	url = https://gitlab.freedesktop.org/mesa/mesa.git
+[submodule "third_party/mesademos"]
+	path = third_party/mesademos
+	url = https://gitlab.freedesktop.org/mesa/demos.git

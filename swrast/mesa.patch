@@ -1,0 +1,406 @@
+diff --git a/include/GL/gl.h b/include/GL/gl.h
+index 88efd27..03e69ee 100644
+--- a/include/GL/gl.h
++++ b/include/GL/gl.h
+@@ -59,7 +59,7 @@
+  * than "WIN32_LEAN_AND_MEAN" may include windows.h before
+  * glut.h or gl.h.
+  */
+-#if defined(_WIN32) && !defined(APIENTRY) && !defined(__CYGWIN__)
++#if defined(_WIN32) && !defined(APIENTRY) && !defined(__CYGWIN__) && !defined(__MINGW64__)
+ #ifndef WIN32_LEAN_AND_MEAN
+ #define WIN32_LEAN_AND_MEAN 1
+ #endif
+diff --git a/meson.build b/meson.build
+index 6d10219..f825a63 100644
+--- a/meson.build
++++ b/meson.build
+@@ -519,7 +519,7 @@ endif
+ if with_glx != 'disabled'
+   if not (with_platform_x11 and with_any_opengl)
+     error('Cannot build GLX support without X11 platform support and at least one OpenGL API')
+-  elif with_glx == 'xlib'
++  elif with_glx == 'xlib' or with_glx == 'nxlib'
+     if not with_gallium
+       error('xlib based GLX requires at least one gallium driver')
+     elif not with_gallium_softpipe
+@@ -539,7 +539,7 @@ glvnd_vendor_name = get_option('glvnd-vendor-name')
+ if with_glvnd
+   if with_platform_windows
+     error('glvnd cannot be used on Windows')
+-  elif with_glx == 'xlib'
++  elif with_glx == 'xlib' or with_glx == 'nxlib'
+     error('Cannot build glvnd support for GLX that is not DRI based.')
+   elif with_glx == 'disabled' and not with_egl
+     error('glvnd requires DRI based GLX and/or EGL')
+@@ -847,7 +847,7 @@ with_glx_indirect_rendering = false
+ if with_platform_x11
+   if with_glx == 'xlib'
+     pre_args += '-DUSE_XSHM'
+-  else
++  elif with_glx != 'nxlib'
+     with_glx_indirect_rendering = true
+     pre_args += '-DGLX_INDIRECT_RENDERING'
+     if with_glx_direct
+@@ -2040,6 +2040,8 @@ if with_platform_x11
+     dep_xext = dependency('xext')
+     dep_xcb = dependency('xcb')
+     dep_xcb_xrandr = dependency('xcb-randr')
++  elif with_glx == 'nxlib'
++    dep_nx11 = dependency('nx11')
+   elif with_glx == 'dri'
+     dep_x11 = dependency('x11')
+     dep_xext = dependency('xext')
+@@ -2159,6 +2161,8 @@ gl_priv_reqs = []
+ 
+ if with_glx == 'xlib'
+   gl_priv_reqs += ['x11', 'xext', 'xcb']
++elif with_glx == 'nxlib'
++  gl_priv_reqs += ['nx11']
+ elif with_glx == 'dri'
+   gl_priv_reqs += [
+     'x11', 'xext', 'xfixes', 'x11-xcb', 'xcb',
+diff --git a/meson_options.txt b/meson_options.txt
+index d75691d..d4515ef 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -347,7 +347,7 @@ option(
+   'glx',
+   type : 'combo',
+   value : 'auto',
+-  choices : ['auto', 'disabled', 'dri', 'xlib'],
++  choices : ['auto', 'disabled', 'dri', 'xlib', 'nxlib'],
+   description : 'Build support for GLX platform'
+ )
+ 
+diff --git a/src/compiler/glsl/glcpp/meson.build b/src/compiler/glsl/glcpp/meson.build
+index b3ea48a..3a5df0a 100644
+--- a/src/compiler/glsl/glcpp/meson.build
++++ b/src/compiler/glsl/glcpp/meson.build
+@@ -31,6 +31,11 @@ else
+   ]
+ endif
+ 
++_mesa_windows_args = []
++if host_machine.system() == 'windows' and with_glx == 'nxlib'
++  _mesa_windows_args += '-D_GLAPI_NO_EXPORTS'
++endif
++
+ glcpp_parse = custom_target(
+   'glcpp-parse.[ch]',
+   input : 'glcpp-parse.y',
+@@ -50,7 +55,7 @@ libglcpp = static_library(
+   [glcpp_lex, glcpp_parse, files('glcpp.h', 'pp.c')],
+   dependencies : idep_mesautil,
+   include_directories : [inc_include, inc_src, inc_mapi, inc_mesa, inc_gallium, inc_gallium_aux],
+-  c_args : [no_override_init_args, c_msvc_compat_args],
++  c_args : [no_override_init_args, c_msvc_compat_args, _mesa_windows_args],
+   cpp_args : [cpp_msvc_compat_args],
+   gnu_symbol_visibility : 'hidden',
+   build_by_default : false,
+diff --git a/src/compiler/glsl/meson.build b/src/compiler/glsl/meson.build
+index 66c11be..edef081 100644
+--- a/src/compiler/glsl/meson.build
++++ b/src/compiler/glsl/meson.build
+@@ -235,14 +235,19 @@ files_libglsl_standalone = files(
+   'standalone.h',
+ )
+ 
++_mesa_windows_args = []
++if host_machine.system() == 'windows' and with_glx == 'nxlib'
++  _mesa_windows_args += '-D_GLAPI_NO_EXPORTS'
++endif
++
+ libglsl = static_library(
+   'glsl',
+   [files_libglsl, glsl_parser, glsl_lexer_cpp, ir_expression_operation_h,
+    ir_expression_operation_strings_h, ir_expression_operation_constant_h,
+    float64_glsl_h, cross_platform_settings_piece_all_h, bc1_glsl_h, bc4_glsl_h,
+    etc2_rgba_stitch_glsl_h, astc_glsl_h],
+-  c_args : [c_msvc_compat_args, no_override_init_args],
+-  cpp_args : [cpp_msvc_compat_args],
++  c_args : [c_msvc_compat_args, no_override_init_args, _mesa_windows_args],
++  cpp_args : [cpp_msvc_compat_args, _mesa_windows_args],
+   gnu_symbol_visibility : 'hidden',
+   link_with : libglcpp,
+   include_directories : [inc_include, inc_src, inc_mapi, inc_mesa, inc_gallium, inc_gallium_aux],
+diff --git a/src/gallium/auxiliary/meson.build b/src/gallium/auxiliary/meson.build
+index 96b0272..9c28129 100644
+--- a/src/gallium/auxiliary/meson.build
++++ b/src/gallium/auxiliary/meson.build
+@@ -459,7 +459,7 @@ if with_dri2 and with_platform_x11
+   endif
+ endif
+ 
+-if with_glx == 'xlib'
++if with_glx == 'xlib' or with_glx == 'nxlib'
+   files_libgalliumvlwinsys += files('vl/vl_winsys_xlib_swrast.c')
+ elif with_gallium_drisw_kms
+   files_libgalliumvlwinsys += files('vl/vl_winsys_dri_vgem.c')
+diff --git a/src/gallium/frontends/glx/xlib/glx_api.c b/src/gallium/frontends/glx/xlib/glx_api.c
+index 33fd81b..8ae0573 100644
+--- a/src/gallium/frontends/glx/xlib/glx_api.c
++++ b/src/gallium/frontends/glx/xlib/glx_api.c
+@@ -626,16 +626,17 @@ close_display_callback(Display *dpy, XExtCodes *codes)
+  * Look for the named extension on given display and return a pointer
+  * to the _XExtension data, or NULL if extension not found.
+  */
+-static _XExtension *
++static Bool
+ lookup_extension(Display *dpy, const char *extName)
+ {
+-   _XExtension *ext;
+-   for (ext = dpy->ext_procs; ext; ext = ext->next) {
+-      if (ext->name && strcmp(ext->name, extName) == 0) {
+-         return ext;
++   int ext_len = 0;
++   char **exts = XListExtensions(dpy, &ext_len);
++   for (int ext = 0; ext < ext_len; ++ext) {
++      if (exts[ext] && strcmp(exts[ext], extName) == 0) {
++         return True;
+       }
+    }
+-   return NULL;
++   return False;
+ }
+ 
+ 
+@@ -649,8 +650,13 @@ register_with_display(Display *dpy)
+    const char *extName = "MesaGLX";
+    _XExtension *ext;
+ 
+-   ext = lookup_extension(dpy, extName);
+-   if (!ext) {
++   // microwindows does not currently support extensions and
++   // this code assumes that it does to the extent of using
++   // ext_procs which is an implementation detail of xorg xlib
++   // I have modified lookup_extension to work correctly but
++   // the rest of this still fails.
++   const char *vendor = ServerVendor(dpy);
++   if (strcmp(vendor, "CSET") && !lookup_extension(dpy, extName)) {
+       XExtCodes *c = XAddExtension(dpy);
+       ext = dpy->ext_procs;  /* new extension is at head of list */
+       assert(c->extension == ext->codes.extension);
+diff --git a/src/gallium/frontends/glx/xlib/meson.build b/src/gallium/frontends/glx/xlib/meson.build
+index eaf8451..70c0d8c 100644
+--- a/src/gallium/frontends/glx/xlib/meson.build
++++ b/src/gallium/frontends/glx/xlib/meson.build
+@@ -18,10 +18,16 @@
+ # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ # SOFTWARE.
+ 
++_mesa_windows_args = []
++if host_machine.system() == 'windows' and with_glx == 'nxlib'
++  _mesa_windows_args += '-D_GLAPI_NO_EXPORTS'
++endif
++
+ libxlib = static_library(
+   'xlib',
+   files('glx_api.c', 'glx_getproc.c', 'glx_usefont.c', 'xm_api.c', 'xm_st.c'),
+   gnu_symbol_visibility : 'hidden',
+   include_directories : [inc_include, inc_src, inc_gallium, inc_gallium_aux, inc_mapi, inc_mesa],
++  c_args : [_mesa_windows_args],
+   dependencies : [dep_x11, dep_xext, dep_xcb, dep_glproto, idep_mesautil],
+ )
+diff --git a/src/gallium/meson.build b/src/gallium/meson.build
+index 42b9336..a305995 100644
+--- a/src/gallium/meson.build
++++ b/src/gallium/meson.build
+@@ -209,7 +209,7 @@ if with_osmesa
+   subdir('frontends/osmesa')
+   subdir('targets/osmesa')
+ endif
+-if with_glx == 'xlib'
++if with_glx == 'xlib' or with_glx == 'nxlib'
+   subdir('winsys/sw/xlib')
+   subdir('frontends/glx/xlib')
+   subdir('targets/libgl-xlib')
+diff --git a/src/gallium/targets/libgl-xlib/meson.build b/src/gallium/targets/libgl-xlib/meson.build
+index 932a693..fb07380 100644
+--- a/src/gallium/targets/libgl-xlib/meson.build
++++ b/src/gallium/targets/libgl-xlib/meson.build
+@@ -37,7 +37,7 @@ if with_shared_glapi
+   gallium_xlib_link_with += libglapi
+ endif
+ 
+-libgl = shared_library(
++libgl = library(
+   'GL',
+   files('xlib.c'),
+   include_directories : [
+diff --git a/src/gallium/targets/va/meson.build b/src/gallium/targets/va/meson.build
+index 6806eeb..81f4954 100644
+--- a/src/gallium/targets/va/meson.build
++++ b/src/gallium/targets/va/meson.build
+@@ -42,7 +42,7 @@ link_with_libva_gallium = [
+   libpipe_loader_static, libws_null, libwsw, libswdri, libswkmsdri,
+ ]
+ 
+-if with_glx == 'xlib'
++if with_glx == 'xlib' or with_glx == 'nxlib'
+   link_with_libva_gallium += [libws_xlib]
+ endif
+ 
+diff --git a/src/gallium/targets/vdpau/meson.build b/src/gallium/targets/vdpau/meson.build
+index 1f41d00..84afebc 100644
+--- a/src/gallium/targets/vdpau/meson.build
++++ b/src/gallium/targets/vdpau/meson.build
+@@ -42,7 +42,7 @@ link_with_libvdpau_gallium = [
+   libpipe_loader_static, libws_null, libwsw, libswdri, libswkmsdri,
+ ]
+ 
+-if with_glx == 'xlib'
++if with_glx == 'xlib' or with_glx == 'nxlib'
+   link_with_libvdpau_gallium += [libws_xlib]
+ endif
+ 
+diff --git a/src/gallium/winsys/sw/xlib/xlib_sw_winsys.c b/src/gallium/winsys/sw/xlib/xlib_sw_winsys.c
+index 4777ce8..7fa3673 100644
+--- a/src/gallium/winsys/sw/xlib/xlib_sw_winsys.c
++++ b/src/gallium/winsys/sw/xlib/xlib_sw_winsys.c
+@@ -45,9 +45,11 @@
+ #include <X11/Xlib.h>
+ #include <X11/Xlibint.h>
+ #include <X11/Xutil.h>
++#ifndef __MINGW64__
+ #include <sys/ipc.h>
+ #include <sys/shm.h>
+ #include <X11/extensions/XShm.h>
++#endif
+ 
+ DEBUG_GET_ONCE_BOOL_OPTION(xlib_no_shm, "XLIB_NO_SHM", false)
+ 
+@@ -75,8 +77,10 @@ struct xlib_displaytarget
+     */
+    Drawable drawable;
+ 
++#ifndef __MINGW64__
+    XShmSegmentInfo shminfo;
+    Bool shm;  /** Using shared memory images? */
++#endif
+ };
+ 
+ 
+@@ -118,6 +122,7 @@ handle_xerror(Display *dpy, XErrorEvent *event)
+ }
+ 
+ 
++#ifndef __MINGW64__
+ static char *
+ alloc_shm(struct xlib_displaytarget *buf, unsigned size)
+ {
+@@ -198,6 +203,7 @@ alloc_shm_ximage(struct xlib_displaytarget *xlib_dt,
+ 
+    xlib_dt->shm = True;
+ }
++#endif
+ 
+ 
+ static void
+@@ -206,11 +212,13 @@ alloc_ximage(struct xlib_displaytarget *xlib_dt,
+              unsigned width, unsigned height)
+ {
+    /* try allocating a shared memory image first */
++#ifndef __MINGW64__
+    if (xlib_dt->shm) {
+       alloc_shm_ximage(xlib_dt, xmb, width, height);
+       if (xlib_dt->tempImage)
+          return; /* success */
+    }
++#endif
+ 
+    /* try regular (non-shared memory) image */
+    xlib_dt->tempImage = XCreateImage(xlib_dt->display,
+@@ -258,6 +266,7 @@ xlib_displaytarget_destroy(struct sw_winsys *ws,
+    struct xlib_displaytarget *xlib_dt = xlib_displaytarget(dt);
+ 
+    if (xlib_dt->data) {
++#ifndef __MINGW64__
+       if (xlib_dt->shminfo.shmid >= 0) {
+          shmdt(xlib_dt->shminfo.shmaddr);
+          shmctl(xlib_dt->shminfo.shmid, IPC_RMID, 0);
+@@ -269,7 +278,9 @@ xlib_displaytarget_destroy(struct sw_winsys *ws,
+          if (xlib_dt->tempImage)
+             xlib_dt->tempImage->data = NULL;
+       }
+-      else {
++      else
++#endif
++      {
+          align_free(xlib_dt->data);
+          if (xlib_dt->tempImage && xlib_dt->tempImage->data == xlib_dt->data) {
+             xlib_dt->tempImage->data = NULL;
+@@ -349,6 +360,7 @@ xlib_sw_display(struct xlib_drawable *xlib_drawable,
+       XSetFunction(display, xlib_dt->gc, GXcopy);
+    }
+ 
++#ifndef __MINGW64__
+    if (xlib_dt->shm) {
+       ximage = xlib_dt->tempImage;
+       ximage->data = xlib_dt->data;
+@@ -358,7 +370,9 @@ xlib_sw_display(struct xlib_drawable *xlib_drawable,
+                    ximage, box->x, box->y, box->x, box->y,
+                    box->width, box->height, False);
+    }
+-   else {
++   else
++#endif
++   {
+       /* display image in Window */
+       ximage = xlib_dt->tempImage;
+       ximage->data = xlib_dt->data;
+@@ -423,6 +437,7 @@ xlib_displaytarget_create(struct sw_winsys *winsys,
+    xlib_dt->stride = align(util_format_get_stride(format, width), alignment);
+    size = xlib_dt->stride * nblocksy;
+ 
++#ifndef __MINGW64__
+    if (!debug_get_option_xlib_no_shm() &&
+        XQueryExtension(xlib_dt->display, "MIT-SHM", &ignore, &ignore, &ignore)) {
+       xlib_dt->data = alloc_shm(xlib_dt, size);
+@@ -430,6 +445,7 @@ xlib_displaytarget_create(struct sw_winsys *winsys,
+          xlib_dt->shm = True;
+       }
+    }
++#endif
+ 
+    if (!xlib_dt->data) {
+       xlib_dt->data = align_malloc(size, alignment);
+diff --git a/src/mapi/glapi/meson.build b/src/mapi/glapi/meson.build
+index 13af41d..32ffc24 100644
+--- a/src/mapi/glapi/meson.build
++++ b/src/mapi/glapi/meson.build
+@@ -53,6 +53,8 @@ endif
+ static_glapi_args += '-DMAPI_MODE_UTIL'
+ if with_platform_windows
+   static_glapi_args += ['-D_GDI32_', '-DKHRONOS_DLL_EXPORTS', '-D_GLAPI_DLL_EXPORTS']
++elif host_machine.system() == 'windows' and with_glx == 'nxlib'
++  static_glapi_args += ['-D_GLAPI_DLL_EXPORTS']
+ endif
+ static_glapi_files += files(
+   '../u_current.c',
+diff --git a/src/mesa/meson.build b/src/mesa/meson.build
+index d07b8fb..f7a704e 100644
+--- a/src/mesa/meson.build
++++ b/src/mesa/meson.build
+@@ -465,6 +465,8 @@ if with_platform_windows
+     # prevent _glapi_* from being declared __declspec(dllimport)
+     _mesa_windows_args += '-D_GLAPI_NO_EXPORTS'
+   endif
++elif host_machine.system() == 'windows' and with_glx == 'nxlib'
++  _mesa_windows_args += '-D_GLAPI_NO_EXPORTS'
+ endif
+ 
+ libmesa = static_library(
+diff --git a/src/util/macros.h b/src/util/macros.h
+index dac3872..3e7d590 100644
+--- a/src/util/macros.h
++++ b/src/util/macros.h
+@@ -278,7 +278,7 @@ do {                       \
+  * inline a static function that we later use in an alias. - ajax
+  */
+ #ifndef PUBLIC
+-#  if defined(_WIN32)
++#  if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+ #    define PUBLIC __declspec(dllexport)
+ #    define USED
+ #  elif defined(__GNUC__)

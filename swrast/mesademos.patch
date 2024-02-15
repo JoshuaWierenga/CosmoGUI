@@ -1,0 +1,577 @@
+diff --git a/meson.build b/meson.build
+index d487a11..b5fbf9f 100644
+--- a/meson.build
++++ b/meson.build
+@@ -52,10 +52,15 @@ dep_drm = dependency('libdrm',
+   required : get_option('libdrm'),
+   disabler : true
+ )
+-dep_x11 = dependency('x11, xext',
+-  required : get_option('x11'),
+-  disabler : true
+-)
++opt_x11 = get_option('x11')
++dep_x11 = null_dep
++if opt_x11 == 'auto' or opt_x11 == 'x11'
++  dep_x11 = dependency('x11, xext', required : opt_x11 == 'x11')
++endif
++dep_nx11 = null_dep
++if (opt_x11 == 'auto' and not dep_x11.found()) or opt_x11 == 'nx11'
++  dep_nx11 = dependency('nx11', required : opt_x11 == 'nx11')
++endif
+ dep_wayland = dependency('wayland-client, wayland-egl, xkbcommon',
+   required : get_option('wayland'),
+   disabler : true
+@@ -95,7 +100,7 @@ if not dep_glu.found() and host_machine.system() != 'darwin'
+     _glu_name = 'glu32'
+   endif
+   dep_glu = cc.find_library(_glu_name, has_headers: 'GL/glu.h',
+-    required : dep_x11.found())
++    required : dep_x11.found() or dep_nx11.found())
+ endif
+ 
+ dep_glx = dependency('glx', required: false, disabler : true)
+@@ -103,7 +108,7 @@ if not dep_glx.found()
+   # Both Mesa build without GLVND and XQuartz lacks a glx.pc, but does
+   # provide the header. And all the symbols reside in libGL, so let's
+   # just use that.
+-  if cc.check_header('GL/glx.h', dependencies: [dep_x11, dep_gl])
++  if cc.check_header('GL/glx.h', dependencies: [dep_x11, dep_nx11, dep_gl])
+     dep_glx = dep_gl
+   endif
+ endif
+diff --git a/meson_options.txt b/meson_options.txt
+index 8b03042..ba8d0f9 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -5,7 +5,20 @@ option('gles2',                  type : 'feature')
+ option('glut',                   type : 'feature')
+ option('osmesa',                 type : 'feature')
+ option('libdrm',                 type : 'feature')
+-option('x11',                    type : 'feature')
++option(
++  'x11',
++  type : 'combo',
++  value : 'auto',
++  choices : ['auto', 'disabled', 'enabled', 'x11', 'nx11'],
++  deprecated : {'enabled' : 'x11'}
++)
+ option('vulkan',                 type : 'feature')
+ option('wayland',                type : 'feature')
++option('wgl',                    type : 'feature')
+ option('with-system-data-files', type : 'boolean', value : false)
++option(
++  'mesa-library-type',
++  type : 'combo',
++  value : 'shared',
++  choices : ['static', 'shared']
++)
+\ No newline at end of file
+diff --git a/src/meson.build b/src/meson.build
+index fd4a167..66486b9 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -42,7 +42,7 @@ if dep_egl.found()
+   subdir('egl')
+ endif
+ 
+-if dep_x11.found()
++if dep_x11.found() or dep_nx11.found()
+   subdir('xdemos')
+ endif
+ 
+@@ -54,7 +54,7 @@ if dep_vulkan.found()
+   subdir('vulkan')
+ endif
+ 
+-if host_machine.system() == 'windows'
++if get_option('wgl').allowed() and host_machine.system() == 'windows'
+   subdir('wgl')
+ endif
+ 
+diff --git a/src/xdemos/glsync.c b/src/xdemos/glsync.c
+index 72d9a36..ce3f119 100644
+--- a/src/xdemos/glsync.c
++++ b/src/xdemos/glsync.c
+@@ -49,7 +49,12 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <unistd.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <GL/glxext.h>
+ #include <X11/X.h>
+diff --git a/src/xdemos/glthreads.c b/src/xdemos/glthreads.c
+index 51b6f86..5439c02 100644
+--- a/src/xdemos/glthreads.c
++++ b/src/xdemos/glthreads.c
+@@ -46,7 +46,12 @@
+ 
+ 
+ #include <assert.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <math.h>
+ #include <stdio.h>
+diff --git a/src/xdemos/glxcontexts.c b/src/xdemos/glxcontexts.c
+index b9a8be1..1c2726d 100644
+--- a/src/xdemos/glxcontexts.c
++++ b/src/xdemos/glxcontexts.c
+@@ -37,7 +37,12 @@
+ #include <string.h>
+ #include <X11/Xlib.h>
+ #include <X11/keysym.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ 
+ 
+diff --git a/src/xdemos/glxdemo.c b/src/xdemos/glxdemo.c
+index 221bbba..76892a0 100644
+--- a/src/xdemos/glxdemo.c
++++ b/src/xdemos/glxdemo.c
+@@ -7,7 +7,12 @@
+  * Brian Paul
+  */
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+diff --git a/src/xdemos/glxgears.c b/src/xdemos/glxgears.c
+index 6937bab..adf0674 100644
+--- a/src/xdemos/glxgears.c
++++ b/src/xdemos/glxgears.c
+@@ -34,7 +34,12 @@
+ #include <X11/Xatom.h>
+ #include <X11/Xlib.h>
+ #include <X11/keysym.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <GL/glxext.h>
+ 
+diff --git a/src/xdemos/glxgears_fbconfig.c b/src/xdemos/glxgears_fbconfig.c
+index 438ffd6..58623d4 100644
+--- a/src/xdemos/glxgears_fbconfig.c
++++ b/src/xdemos/glxgears_fbconfig.c
+@@ -40,7 +40,12 @@
+ #include <string.h>
+ #include <X11/Xlib.h>
+ #include <X11/keysym.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <GL/glxext.h>
+ #include <assert.h>
+diff --git a/src/xdemos/glxgears_pixmap.c b/src/xdemos/glxgears_pixmap.c
+index e9de2cb..9259695 100644
+--- a/src/xdemos/glxgears_pixmap.c
++++ b/src/xdemos/glxgears_pixmap.c
+@@ -42,7 +42,12 @@
+ #include <string.h>
+ #include <X11/Xlib.h>
+ #include <X11/keysym.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <GL/glxext.h>
+ #include <assert.h>
+diff --git a/src/xdemos/glxheads.c b/src/xdemos/glxheads.c
+index bc785d3..de27b71 100644
+--- a/src/xdemos/glxheads.c
++++ b/src/xdemos/glxheads.c
+@@ -25,7 +25,12 @@
+  */
+ 
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+diff --git a/src/xdemos/glxpbdemo.c b/src/xdemos/glxpbdemo.c
+index 8a92875..42ff2f0 100644
+--- a/src/xdemos/glxpbdemo.c
++++ b/src/xdemos/glxpbdemo.c
+@@ -32,6 +32,12 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <X11/Xlib.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#include <GL/gl.h>
++#include <GL/glext.h>
++#endif
+ #include <GL/glx.h>
+ 
+ /* Some ugly global vars */
+diff --git a/src/xdemos/glxpixmap.c b/src/xdemos/glxpixmap.c
+index 7b96fc5..9e45237 100644
+--- a/src/xdemos/glxpixmap.c
++++ b/src/xdemos/glxpixmap.c
+@@ -8,7 +8,12 @@
+  */
+ 
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #define GLX_GLXEXT_PROTOTYPES
+ #include <GL/glx.h>
+ #include <stdio.h>
+diff --git a/src/xdemos/glxsnoop.c b/src/xdemos/glxsnoop.c
+index 2b8beae..c4544c7 100644
+--- a/src/xdemos/glxsnoop.c
++++ b/src/xdemos/glxsnoop.c
+@@ -10,7 +10,12 @@
+ 
+ #define GL_GLEXT_PROTOTYPES
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+diff --git a/src/xdemos/glxswapcontrol.c b/src/xdemos/glxswapcontrol.c
+index 6bc4f2d..50e3d17 100644
+--- a/src/xdemos/glxswapcontrol.c
++++ b/src/xdemos/glxswapcontrol.c
+@@ -45,7 +45,12 @@
+ /*# include <stdint.h>*/
+ #endif
+ #define GLX_GLXEXT_PROTOTYPES
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ 
+ #ifndef GLX_MESA_swap_control
+diff --git a/src/xdemos/manywin.c b/src/xdemos/manywin.c
+index d917908..e7d7dbc 100644
+--- a/src/xdemos/manywin.c
++++ b/src/xdemos/manywin.c
+@@ -24,7 +24,12 @@
+  */
+ 
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <assert.h>
+ #include <stdio.h>
+diff --git a/src/xdemos/meson.build b/src/xdemos/meson.build
+index a569fde..5b75448 100644
+--- a/src/xdemos/meson.build
++++ b/src/xdemos/meson.build
+@@ -18,7 +18,7 @@
+ # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ # SOFTWARE.
+ 
+-glx_deps = [dep_gl, dep_glx, dep_x11, dep_m]
++glx_deps = [dep_gl, dep_glx, dep_x11, dep_nx11, dep_m]
+ 
+ progs = [
+   'glsync',
+@@ -45,7 +45,8 @@ foreach p : progs
+   executable(
+     p, files(p + '.c'),
+     dependencies: glx_deps,
+-    install: true
++    install: true,
++    link_language: get_option('mesa-library-type') == 'shared' ? 'c' : 'cpp'
+   )
+ endforeach
+ 
+@@ -53,14 +54,16 @@ executable(
+   'glxinfo',
+   files('glxinfo.c'),
+   dependencies: [glx_deps, idep_glad, idep_util],
+-  install: true
++  install: true,
++  link_language: get_option('mesa-library-type') == 'shared' ? 'c' : 'cpp'
+ )
+ 
+ executable(
+   'xrotfontdemo',
+   files('xrotfontdemo.c', 'xuserotfont.c'),
+   dependencies: glx_deps,
+-  install: true
++  install: true,
++  link_language: get_option('mesa-library-type') == 'shared' ? 'c' : 'cpp'
+ )
+ 
+ _libpbutil = static_library(
+@@ -79,7 +82,8 @@ foreach p : pbutil_progs
+     p, files(p + '.c'),
+     dependencies: glx_deps,
+     link_with: _libpbutil,
+-    install: true
++    install: true,
++    link_language: get_option('mesa-library-type') == 'shared' ? 'c' : 'cpp'
+   )
+ endforeach
+ 
+@@ -91,6 +95,7 @@ foreach p : thread_progs
+   executable(
+     p, files(p + '.c'),
+     dependencies: [glx_deps, dep_threads],
+-    install: true
++    install: true,
++    link_language: get_option('mesa-library-type') == 'shared' ? 'c' : 'cpp'
+   )
+ endforeach
+diff --git a/src/xdemos/multictx.c b/src/xdemos/multictx.c
+index a08de51..a455c9b 100644
+--- a/src/xdemos/multictx.c
++++ b/src/xdemos/multictx.c
+@@ -37,7 +37,12 @@
+ #include <unistd.h>
+ #include <X11/Xlib.h>
+ #include <X11/keysym.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ 
+ 
+diff --git a/src/xdemos/offset.c b/src/xdemos/offset.c
+index 2125b1c..c7b4ef4 100644
+--- a/src/xdemos/offset.c
++++ b/src/xdemos/offset.c
+@@ -46,6 +46,12 @@ PERFORMANCE OF THIS SOFTWARE.
+  */
+ 
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#include <GL/gl.h>
++#include <GL/glext.h>
++#endif
+ #include <GL/glx.h>
+ #include <X11/keysym.h>
+ #include <stdlib.h>
+diff --git a/src/xdemos/overlay.c b/src/xdemos/overlay.c
+index 539cd4a..dfd8935 100644
+--- a/src/xdemos/overlay.c
++++ b/src/xdemos/overlay.c
+@@ -5,7 +5,12 @@
+  * 18 July 2005
+  */
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <X11/keysym.h>
+ #include <assert.h>
+diff --git a/src/xdemos/pbutil.h b/src/xdemos/pbutil.h
+index d0a51d0..465a69e 100644
+--- a/src/xdemos/pbutil.h
++++ b/src/xdemos/pbutil.h
+@@ -11,6 +11,12 @@
+ 
+ 
+ #define GLX_GLXEXT_PROTOTYPES
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#include <GL/gl.h>
++#include <GL/glext.h>
++#endif
+ #include <GL/glx.h>
+ 
+ 
+diff --git a/src/xdemos/shape.c b/src/xdemos/shape.c
+index f746404..e1301db 100644
+--- a/src/xdemos/shape.c
++++ b/src/xdemos/shape.c
+@@ -24,6 +24,12 @@
+ #include <X11/Xutil.h>
+ #include <X11/keysym.h>
+ #include <X11/extensions/shape.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#include <GL/gl.h>
++#include <GL/glext.h>
++#endif
+ #include <GL/glx.h>
+ 
+ 
+diff --git a/src/xdemos/sharedtex.c b/src/xdemos/sharedtex.c
+index 44c73e7..fc9ea8a 100644
+--- a/src/xdemos/sharedtex.c
++++ b/src/xdemos/sharedtex.c
+@@ -27,7 +27,12 @@
+  */
+ 
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <assert.h>
+ #include <stdio.h>
+diff --git a/src/xdemos/sharedtex_mt.c b/src/xdemos/sharedtex_mt.c
+index 3ad8ca0..03403bf 100644
+--- a/src/xdemos/sharedtex_mt.c
++++ b/src/xdemos/sharedtex_mt.c
+@@ -30,7 +30,12 @@
+  */
+ 
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+diff --git a/src/xdemos/texture_from_pixmap.c b/src/xdemos/texture_from_pixmap.c
+index fbf8088..9f72f86 100644
+--- a/src/xdemos/texture_from_pixmap.c
++++ b/src/xdemos/texture_from_pixmap.c
+@@ -32,7 +32,12 @@
+ 
+ #define GL_GLEXT_PROTOTYPES
+ #define GLX_GLXEXT_PROTOTYPES
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <X11/keysym.h>
+ #include <stdio.h>
+diff --git a/src/xdemos/wincopy.c b/src/xdemos/wincopy.c
+index 1dea7b8..e3771ae 100644
+--- a/src/xdemos/wincopy.c
++++ b/src/xdemos/wincopy.c
+@@ -34,7 +34,12 @@
+ 
+ #define GL_GLEXT_PROTOTYPES
+ #define GLX_GLXEXT_PROTOTYPES
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <X11/keysym.h>
+ #include <stdio.h>
+diff --git a/src/xdemos/xfont.c b/src/xdemos/xfont.c
+index 98809d3..abbd61b 100644
+--- a/src/xdemos/xfont.c
++++ b/src/xdemos/xfont.c
+@@ -30,7 +30,12 @@
+  */
+ 
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+diff --git a/src/xdemos/xrotfontdemo.c b/src/xdemos/xrotfontdemo.c
+index 29cce08..67c7f57 100644
+--- a/src/xdemos/xrotfontdemo.c
++++ b/src/xdemos/xrotfontdemo.c
+@@ -29,7 +29,12 @@
+  */
+ 
+ 
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#endif
+ #include <GL/gl.h>
++#include <GL/glext.h>
+ #include <GL/glx.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+diff --git a/src/xdemos/xuserotfont.c b/src/xdemos/xuserotfont.c
+index 398d3c7..0d5219f 100644
+--- a/src/xdemos/xuserotfont.c
++++ b/src/xdemos/xuserotfont.c
+@@ -34,6 +34,12 @@
+ #include <assert.h>
+ #include <stdlib.h>
+ #include <string.h>
++#ifdef _WIN32
++#define WINGDIAPI
++#define APIENTRY
++#include <GL/gl.h>
++#include <GL/glext.h>
++#endif
+ #include <GL/glx.h>
+ #include "xuserotfont.h"
+ 
