@@ -34,3 +34,6 @@
 [submodule "third_party/mesademos"]
 	path = third_party/mesademos
 	url = https://gitlab.freedesktop.org/mesa/demos.git
+[submodule "third_party/glu"]
+	path = third_party/glu
+	url = https://gitlab.freedesktop.org/mesa/glu.git

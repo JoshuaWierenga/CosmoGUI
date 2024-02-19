@@ -137,6 +137,126 @@ index 1057d4c..f0f1857 100644
  
  # library targets ********************************
  
+diff --git a/src/config b/src/config
+index 3bc416d..ff44890 100644
+--- a/src/config
++++ b/src/config
+@@ -14,10 +14,10 @@
+ # Target platform and compilation options
+ #
+ ####################################################################
+-ARCH                     = MACOSX
+-SHAREDLIBS               = Y
+-SHAREDLINK               = Y
+-#EXTRAFLAGS               = -Wall -Wno-missing-prototypes
++ARCH                     = LINUX-NATIVE
++SHAREDLIBS               = N
++SHAREDLINK               = N
++EXTRAFLAGS               = -fcommon -fPIC
+ DEBUG                    = N
+ OPTIMIZE                 = Y
+ #OPTIMIZE                 = -O1
+@@ -30,24 +30,23 @@ PARALLEL                 = N
+ # Set SCREEN=X11 for X11, SCREEN=FB for framebuffer drawing
+ # Screen size/depth for X11, FBE and non-dynamic framebuffer systems
+ ####################################################################
+-SCREEN                   = SDL
++SCREEN                   = X11
+ MOUSE                    =
+ KEYBOARD                 =
+-EXTENGINELIBS            += -lSDL2
+-SDL_ZOOM                 = 1.0	# must divide screen w/h also when not 1.0
+ SCREEN_WIDTH             = 1024
+ SCREEN_HEIGHT            = 768
+-X11HDRLOCATION           = $(MW_DIR_SRC)/nx11/X11-local
++X11HDRLOCATION           = /usr/include/X11
++X11LIBLOCATION           = /usr/lib/x86_64-linux-gnu
+ 
+ ####################################################################
+ #
+ # Libraries to build: microwin, nano-X, nxlib, engine
+ #
+ ####################################################################
+-MICROWIN                 = Y
++MICROWIN                 = N
+ NANOX                    = Y
+ NUKLEARUI                = Y
+-NX11                     = N
++NX11                     = Y
+ ENGINE                   = N
+ TINYWIDGETS              = N
+ 
+@@ -57,9 +56,9 @@ TINYWIDGETS              = N
+ #
+ ####################################################################
+ FBEMULATOR               = N
+-MICROWINDEMO             = Y
++MICROWINDEMO             = N
+ MICROWINMULTIAPP         = N
+-NANOXDEMO                = Y
++NANOXDEMO                = N
+ HAVE_VNCSERVER_SUPPORT   = N
+ VNCSERVER_PTHREADED      = N
+ LIBVNC                   = -lvncserver
+@@ -84,15 +83,15 @@ HAVE_SHAREDMEM_SUPPORT   = N
+ # File I/O support
+ # Supporting either below drags in libc stdio, which may not be wanted
+ ####################################################################
+-HAVE_FILEIO              = Y
++HAVE_FILEIO              = N
+ 
+ ####################################################################
+ # BMP, GIF reading support
+ ####################################################################
+-HAVE_BMP_SUPPORT         = Y
+-HAVE_GIF_SUPPORT         = Y
+-HAVE_PNM_SUPPORT         = Y
+-HAVE_XPM_SUPPORT         = Y
++HAVE_BMP_SUPPORT         = N
++HAVE_GIF_SUPPORT         = N
++HAVE_PNM_SUPPORT         = N
++HAVE_XPM_SUPPORT         = N
+ 
+ ####################################################################
+ # JPEG support through libjpeg, see README.txt in contrib/jpeg
+@@ -104,7 +103,7 @@ LIBJPEG                  = -ljpeg
+ ####################################################################
+ # PNG support via libpng and libz
+ ####################################################################
+-HAVE_PNG_SUPPORT         = Y
++HAVE_PNG_SUPPORT         = N
+ INCPNG                   =
+ LIBPNG                   = -lpng
+ INCZ                     =
+@@ -120,14 +119,14 @@ LIBTIFF                  = -ltiff
+ ####################################################################
+ # PCF font support - .pcf/.pcf.gz loadable fonts
+ ####################################################################
+-HAVE_PCF_SUPPORT         = Y
+-HAVE_PCFGZ_SUPPORT       = Y
++HAVE_PCF_SUPPORT         = N
++HAVE_PCFGZ_SUPPORT       = N
+ PCF_FONT_DIR             = "fonts/pcf"
+ 
+ ####################################################################
+ # Truetype fonts - .ttf and .otf loadable fonts thru Freetype 2.x
+ ####################################################################
+-HAVE_FREETYPE_2_SUPPORT  = Y
++HAVE_FREETYPE_2_SUPPORT  = N
+ HAVE_HARFBUZZ_SUPPORT    = N
+ INCFT2LIB                = /usr/local/include
+ LIBFT2LIB                = -lfreetype -lbz2
+@@ -146,8 +145,8 @@ LIBT1LIB                 = -lt1
+ ####################################################################
+ # FNT font support - .fnt/.fnt.gz loadable fonts (native bdf-converted)
+ ####################################################################
+-HAVE_FNT_SUPPORT         = Y
+-HAVE_FNTGZ_SUPPORT       = Y
++HAVE_FNT_SUPPORT         = N
++HAVE_FNTGZ_SUPPORT       = N
+ FNT_FONT_DIR             = "fonts/fnt"
+ 
+ ####################################################################
 diff --git a/src/contrib/makefiles_nr/Makefile-drivers b/src/contrib/makefiles_nr/Makefile-drivers
 index 90f1f1d..2415f84 100644
 --- a/src/contrib/makefiles_nr/Makefile-drivers
