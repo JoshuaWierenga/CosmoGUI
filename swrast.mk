@@ -1,8 +1,7 @@
 # TODO: Fix linux build needing nano-X server to be a seperate program, currently LINK_APP_INTO_SERVER causes crashes
 # TODO: Add dos support
 # TODO: Remove as much of xorgproto and libx11 as possible since many of the functions in the headers are unsupported by nano-X
-# TODO: Remove need for nx11.pc
-# TODO: Remove need for glx.pc for windows, already not needed for linux
+# TODO: Remove need for nx11.pc, may not be possible as my patch for mesa ensures it ends up as a requirement in gl.pc
 # TODO: Use actual artifacts for all BUILT variables
 
 .PHONY: swrastmingwbuild swrastglibcbuild swrastbuild nanoxclean swrastglibcclean swrastmingwclean swrastclean
@@ -60,7 +59,7 @@ swrastclean: swrastglibcclean swrastmingwclean
 $(XORGPROTOMINGWBUILT):
 	[ -e $(XORGPROTO)/meson.build ] || git submodule update --init $(XORGPROTO)
 	git apply --reverse --check --directory=$(XORGPROTO) swrast/xorgproto.patch 2> /dev/null || git apply --directory=$(XORGPROTO) swrast/xorgproto.patch
-	[ -e $(XORGPROTOMINGWBUILD) ] || meson setup $(XORGPROTOMINGWBUILD) $(XORGPROTO) --cross-file $(MESONMINGWCONFIG) -Dprefix=$(PWD)/$(x86_64MINGWOUTPUT)
+	[ -e $(XORGPROTOMINGWBUILD) ] || meson setup $(XORGPROTOMINGWBUILD) $(XORGPROTO) --cross-file $(MESONMINGWCONFIG) --prefix=$(PWD)/$(x86_64MINGWOUTPUT)
 	meson install -C $(XORGPROTOMINGWBUILD)
 
 $(LIBX11MINGWBUILT):
@@ -86,33 +85,32 @@ $(NANOXMINGWBUILT): | nanoxclean $(NANOXGLIBCBUILT) $(x86_64MINGWOUTPUT)/include
 	cp $(NANOXSRC)/lib/*.a $(x86_64MINGWOUTPUT)/lib/
 	sed 's#@PREFIX@#$(PWD)/$(x86_64MINGWOUTPUT)#' swrast/nx11.pc.in > $(x86_64MINGWOUTPUT)/lib/pkgconfig/nx11.pc
 
-$(MESAGLIBCBUILT):
+$(MESAGLIBCBUILT): $(NANOXGLIBCBUILT)
 	[ -e $(MESA)/meson.build ] || git submodule update --init $(MESA)
 	git apply --reverse --check --directory=$(MESA) swrast/mesa.patch 2> /dev/null || git apply --directory=$(MESA) swrast/mesa.patch
-	[ -e $(MESAGLIBCBUILD) ] || PKG_CONFIG_PATH=$(x86_64GLIBCOUTPUT)/lib/pkgconfig/ meson setup $(MESAGLIBCBUILD) $(MESA) -Ddri3=disabled -Degl=disabled -Dgallium-drivers=swrast -Dgles1=disabled -Dgles2=disabled -Dglx=nxlib -Dosmesa=false -Dplatforms=x11 -Dshared-glapi=disabled -Dvalgrind=disabled -Dvideo-codecs= -Dvulkan-drivers= -Ddefault_library=static -Dprefix=$(PWD)/$(x86_64GLIBCOUTPUT)
+	[ -e $(MESAGLIBCBUILD) ] || PKG_CONFIG_PATH=$(x86_64GLIBCOUTPUT)/lib/pkgconfig/ meson setup $(MESAGLIBCBUILD) $(MESA) -Ddri3=disabled -Degl=disabled -Dgallium-drivers=swrast -Dgles1=disabled -Dgles2=disabled -Dglx=nxlib -Dosmesa=false -Dplatforms=x11 -Dshared-glapi=disabled -Dvalgrind=disabled -Dvideo-codecs= -Dvulkan-drivers= -Ddefault_library=static --prefix=$(PWD)/$(x86_64GLIBCOUTPUT)
 	meson install -C $(MESAGLIBCBUILD)
 
 $(MESAMINGWBUILT): $(XORGPROTOMINGWBUILT) $(LIBX11MINGWBUILT) $(NANOXMINGWBUILT) | $(x86_64MINGWOUTPUT)/include/GL/
 	[ -e $(MESA)/meson.build ] || git submodule update --init $(MESA)
 	git apply --reverse --check --directory=$(MESA) swrast/mesa.patch 2> /dev/null || git apply --directory=$(MESA) swrast/mesa.patch
-	[ -e $(MESAMINGWBUILD) ] || PKG_CONFIG_PATH=$(x86_64MINGWOUTPUT)/lib/pkgconfig/ CFLAGS=-I$(PWD)/$(x86_64MINGWOUTPUT)/include meson setup $(MESAMINGWBUILD) $(MESA) -Ddri3=disabled -Degl=disabled -Dgallium-drivers=swrast -Dgles1=disabled -Dgles2=disabled -Dglx=nxlib -Dosmesa=false -Dplatforms=x11 -Dshared-glapi=disabled -Dvalgrind=disabled -Dvideo-codecs= -Dvulkan-drivers= --cross-file $(MESONMINGWCONFIG) -Ddefault_library=static -Dprefix=$(PWD)/$(x86_64MINGWOUTPUT)
+	[ -e $(MESAMINGWBUILD) ] || PKG_CONFIG_PATH=$(x86_64MINGWOUTPUT)/lib/pkgconfig/ CFLAGS=-I$(PWD)/$(x86_64MINGWOUTPUT)/include meson setup $(MESAMINGWBUILD) $(MESA) -Ddri3=disabled -Degl=disabled -Dgallium-drivers=swrast -Dgles1=disabled -Dgles2=disabled -Dglx=nxlib -Dosmesa=false -Dplatforms=x11 -Dshared-glapi=disabled -Dvalgrind=disabled -Dvideo-codecs= -Dvulkan-drivers= --cross-file $(MESONMINGWCONFIG) -Ddefault_library=static --prefix=$(PWD)/$(x86_64MINGWOUTPUT)
 	meson install -C $(MESAMINGWBUILD)
-	cp $(x86_64MINGWOUTPUT)/lib/pkgconfig/gl.pc $(x86_64MINGWOUTPUT)/lib/pkgconfig/glx.pc
 	cp $(MESA)/include/GL/glx* $(x86_64MINGWOUTPUT)/include/GL/
 
 $(GLUGLIBCBUILT): $(MESAGLIBCBUILT)
 	[ -e $(GLU)/meson.build ] || git submodule update --init $(GLU)
-	[ -e $(GLUGLIBCBUILD) ] || PKG_CONFIG_PATH=$(x86_64GLIBCOUTPUT)/lib/pkgconfig/:$(x86_64GLIBCOUTPUT)/lib/x86_64-linux-gnu/pkgconfig meson setup $(GLUGLIBCBUILD) $(GLU) -Dgl_provider=glvnd -Ddefault_library=static -Dprefix=$(PWD)/$(x86_64GLIBCOUTPUT)
+	[ -e $(GLUGLIBCBUILD) ] || PKG_CONFIG_PATH=$(x86_64GLIBCOUTPUT)/lib/pkgconfig/:$(x86_64GLIBCOUTPUT)/lib/x86_64-linux-gnu/pkgconfig meson setup $(GLUGLIBCBUILD) $(GLU) -Dgl_provider=glvnd -Ddefault_library=static --prefix=$(PWD)/$(x86_64GLIBCOUTPUT)
 	meson install -C $(GLUGLIBCBUILD)
 
 $(MESADEMOSGLIBCBUILT): $(GLUGLIBCBUILT)
 	[ -e $(MESADEMOS)/meson.build ] || git submodule update --init $(MESADEMOS)
 	git apply --reverse --check --directory=$(MESADEMOS) swrast/mesademos.patch 2> /dev/null || git apply --directory=$(MESADEMOS) swrast/mesademos.patch
-	[ -e $(MESADEMOSGLIBCBUILD) ] || PKG_CONFIG_PATH=$(x86_64GLIBCOUTPUT)/lib/pkgconfig/:$(x86_64GLIBCOUTPUT)/lib/x86_64-linux-gnu/pkgconfig meson setup $(MESADEMOSGLIBCBUILD) $(MESADEMOS) -Degl=disabled -Dgles1=disabled -Dgles2=disabled -Dglut=disabled -Dlibdrm=disabled -Dmesa-library-type=static -Dosmesa=disabled -Dvulkan=disabled -Dwayland=disabled -Dx11=nx11 -Ddefault_library=static -Dprefix=$(PWD)/$(x86_64GLIBCOUTPUT)
+	[ -e $(MESADEMOSGLIBCBUILD) ] || PKG_CONFIG_PATH=$(x86_64GLIBCOUTPUT)/lib/pkgconfig/:$(x86_64GLIBCOUTPUT)/lib/x86_64-linux-gnu/pkgconfig meson setup $(MESADEMOSGLIBCBUILD) $(MESADEMOS) -Degl=disabled -Dgles1=disabled -Dgles2=disabled -Dglut=disabled -Dlibdrm=disabled -Dmesa-library-type=static -Dosmesa=disabled -Dvulkan=disabled -Dwayland=disabled -Dx11=nx11 -Ddefault_library=static --prefix=$(PWD)/$(x86_64GLIBCOUTPUT)
 	meson install -C $(MESADEMOSGLIBCBUILD)
 
 $(MESADEMOSMINGWBUILT): $(MESAMINGWBUILT)
 	[ -e $(MESADEMOS)/meson.build ] || git submodule update --init $(MESADEMOS)
 	git apply --reverse --check --directory=$(MESADEMOS) swrast/mesademos.patch 2> /dev/null || git apply --directory=$(MESADEMOS) swrast/mesademos.patch
-	[ -e $(MESADEMOSMINGWBUILD) ] || PKG_CONFIG_PATH=$(x86_64MINGWOUTPUT)/lib/pkgconfig/ CFLAGS=-I$(PWD)/$(x86_64MINGWOUTPUT)/include meson setup $(MESADEMOSMINGWBUILD) $(MESADEMOS) -Degl=disabled -Dgles1=disabled -Dgles2=disabled -Dglut=disabled -Dlibdrm=disabled -Dmesa-library-type=static -Dosmesa=disabled -Dvulkan=disabled -Dwayland=disabled -Dx11=nx11 -Dwgl=disabled --cross-file $(MESONMINGWCONFIG) -Ddefault_library=static -Dprefix=$(PWD)/$(x86_64MINGWOUTPUT)
+	[ -e $(MESADEMOSMINGWBUILD) ] || PKG_CONFIG_PATH=$(x86_64MINGWOUTPUT)/lib/pkgconfig/ CFLAGS=-I$(PWD)/$(x86_64MINGWOUTPUT)/include meson setup $(MESADEMOSMINGWBUILD) $(MESADEMOS) -Degl=disabled -Dgles1=disabled -Dgles2=disabled -Dglut=disabled -Dlibdrm=disabled -Dmesa-library-type=static -Dosmesa=disabled -Dvulkan=disabled -Dwayland=disabled -Dx11=nx11 -Dwgl=disabled --cross-file $(MESONMINGWCONFIG) -Ddefault_library=static --prefix=$(PWD)/$(x86_64MINGWOUTPUT)
 	meson install -C $(MESADEMOSMINGWBUILD)

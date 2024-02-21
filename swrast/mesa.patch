@@ -12,10 +12,19 @@ index 88efd27..03e69ee 100644
  #define WIN32_LEAN_AND_MEAN 1
  #endif
 diff --git a/meson.build b/meson.build
-index 6d10219..f825a63 100644
+index 2902c10..a142e86 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -519,7 +519,7 @@ endif
+@@ -265,6 +265,8 @@ if with_gallium and system_has_kms_drm
+   _egl = get_option('egl')
+   if _glx == 'dri' or _egl.enabled() or (_glx == 'disabled' and _egl.allowed())
+     with_dri = true
++  elif _glx == 'nxlib'
++    system_has_kms_drm = false
+   endif
+ endif
+ 
+@@ -483,7 +485,7 @@ endif
  if with_glx != 'disabled'
    if not (with_platform_x11 and with_any_opengl)
      error('Cannot build GLX support without X11 platform support and at least one OpenGL API')
@@ -24,7 +33,7 @@ index 6d10219..f825a63 100644
      if not with_gallium
        error('xlib based GLX requires at least one gallium driver')
      elif not with_gallium_softpipe
-@@ -539,7 +539,7 @@ glvnd_vendor_name = get_option('glvnd-vendor-name')
+@@ -503,7 +505,7 @@ glvnd_vendor_name = get_option('glvnd-vendor-name')
  if with_glvnd
    if with_platform_windows
      error('glvnd cannot be used on Windows')
@@ -33,7 +42,7 @@ index 6d10219..f825a63 100644
      error('Cannot build glvnd support for GLX that is not DRI based.')
    elif with_glx == 'disabled' and not with_egl
      error('glvnd requires DRI based GLX and/or EGL')
-@@ -847,7 +847,7 @@ with_glx_indirect_rendering = false
+@@ -811,7 +813,7 @@ with_glx_indirect_rendering = false
  if with_platform_x11
    if with_glx == 'xlib'
      pre_args += '-DUSE_XSHM'
@@ -42,7 +51,7 @@ index 6d10219..f825a63 100644
      with_glx_indirect_rendering = true
      pre_args += '-DGLX_INDIRECT_RENDERING'
      if with_glx_direct
-@@ -2040,6 +2040,8 @@ if with_platform_x11
+@@ -2004,6 +2006,8 @@ if with_platform_x11
      dep_xext = dependency('xext')
      dep_xcb = dependency('xcb')
      dep_xcb_xrandr = dependency('xcb-randr')
@@ -51,7 +60,7 @@ index 6d10219..f825a63 100644
    elif with_glx == 'dri'
      dep_x11 = dependency('x11')
      dep_xext = dependency('xext')
-@@ -2159,6 +2161,8 @@ gl_priv_reqs = []
+@@ -2120,6 +2124,8 @@ gl_priv_reqs = []
  
  if with_glx == 'xlib'
    gl_priv_reqs += ['x11', 'xext', 'xcb']
@@ -61,10 +70,10 @@ index 6d10219..f825a63 100644
    gl_priv_reqs += [
      'x11', 'xext', 'xfixes', 'x11-xcb', 'xcb',
 diff --git a/meson_options.txt b/meson_options.txt
-index d75691d..d4515ef 100644
+index e885ba6..7aabf34 100644
 --- a/meson_options.txt
 +++ b/meson_options.txt
-@@ -347,7 +347,7 @@ option(
+@@ -338,7 +338,7 @@ option(
    'glx',
    type : 'combo',
    value : 'auto',
@@ -99,10 +108,10 @@ index b3ea48a..3a5df0a 100644
    gnu_symbol_visibility : 'hidden',
    build_by_default : false,
 diff --git a/src/compiler/glsl/meson.build b/src/compiler/glsl/meson.build
-index 66c11be..edef081 100644
+index faded36..09127ef 100644
 --- a/src/compiler/glsl/meson.build
 +++ b/src/compiler/glsl/meson.build
-@@ -235,14 +235,19 @@ files_libglsl_standalone = files(
+@@ -240,14 +240,19 @@ files_libglsl_standalone = files(
    'standalone.h',
  )
  
@@ -125,7 +134,7 @@ index 66c11be..edef081 100644
    link_with : libglcpp,
    include_directories : [inc_include, inc_src, inc_mapi, inc_mesa, inc_gallium, inc_gallium_aux],
 diff --git a/src/gallium/auxiliary/meson.build b/src/gallium/auxiliary/meson.build
-index 96b0272..9c28129 100644
+index e7dde65..0dc7224 100644
 --- a/src/gallium/auxiliary/meson.build
 +++ b/src/gallium/auxiliary/meson.build
 @@ -459,7 +459,7 @@ if with_dri2 and with_platform_x11
@@ -203,10 +212,10 @@ index eaf8451..70c0d8c 100644
    dependencies : [dep_x11, dep_xext, dep_xcb, dep_glproto, idep_mesautil],
  )
 diff --git a/src/gallium/meson.build b/src/gallium/meson.build
-index 42b9336..a305995 100644
+index 7b77da1..7a575d7 100644
 --- a/src/gallium/meson.build
 +++ b/src/gallium/meson.build
-@@ -209,7 +209,7 @@ if with_osmesa
+@@ -195,7 +195,7 @@ if with_osmesa
    subdir('frontends/osmesa')
    subdir('targets/osmesa')
  endif
@@ -229,10 +238,10 @@ index 932a693..fb07380 100644
    files('xlib.c'),
    include_directories : [
 diff --git a/src/gallium/targets/va/meson.build b/src/gallium/targets/va/meson.build
-index 6806eeb..81f4954 100644
+index 0b4e40b..704562a 100644
 --- a/src/gallium/targets/va/meson.build
 +++ b/src/gallium/targets/va/meson.build
-@@ -42,7 +42,7 @@ link_with_libva_gallium = [
+@@ -40,7 +40,7 @@ link_with_libva_gallium = [
    libpipe_loader_static, libws_null, libwsw, libswdri, libswkmsdri,
  ]
  
@@ -242,10 +251,10 @@ index 6806eeb..81f4954 100644
  endif
  
 diff --git a/src/gallium/targets/vdpau/meson.build b/src/gallium/targets/vdpau/meson.build
-index 1f41d00..84afebc 100644
+index 87097fe..8e7f4b6 100644
 --- a/src/gallium/targets/vdpau/meson.build
 +++ b/src/gallium/targets/vdpau/meson.build
-@@ -42,7 +42,7 @@ link_with_libvdpau_gallium = [
+@@ -40,7 +40,7 @@ link_with_libvdpau_gallium = [
    libpipe_loader_static, libws_null, libwsw, libswdri, libswkmsdri,
  ]
  
@@ -392,7 +401,7 @@ index d07b8fb..f7a704e 100644
  
  libmesa = static_library(
 diff --git a/src/util/macros.h b/src/util/macros.h
-index dac3872..3e7d590 100644
+index cfcda53..b90833b 100644
 --- a/src/util/macros.h
 +++ b/src/util/macros.h
 @@ -278,7 +278,7 @@ do {                       \
