@@ -116,7 +116,7 @@ index 72d9a36..ce3f119 100644
  #include <GL/glxext.h>
  #include <X11/X.h>
 diff --git a/src/xdemos/glthreads.c b/src/xdemos/glthreads.c
-index 51b6f86..5439c02 100644
+index 51b6f86..1021458 100644
 --- a/src/xdemos/glthreads.c
 +++ b/src/xdemos/glthreads.c
 @@ -46,7 +46,12 @@
@@ -132,6 +132,15 @@ index 51b6f86..5439c02 100644
  #include <GL/glx.h>
  #include <math.h>
  #include <stdio.h>
+@@ -54,6 +59,8 @@
+ #include <string.h>
+ #include <unistd.h>
+ #include <pthread.h>
++#include <X11/keysym.h>
++#include <X11/keysymdef.h>
+ 
+ 
+ /*
 diff --git a/src/xdemos/glxcontexts.c b/src/xdemos/glxcontexts.c
 index b9a8be1..1c2726d 100644
 --- a/src/xdemos/glxcontexts.c

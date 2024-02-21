@@ -147,49 +147,42 @@ index e7dde65..0dc7224 100644
  elif with_gallium_drisw_kms
    files_libgalliumvlwinsys += files('vl/vl_winsys_dri_vgem.c')
 diff --git a/src/gallium/frontends/glx/xlib/glx_api.c b/src/gallium/frontends/glx/xlib/glx_api.c
-index 33fd81b..8ae0573 100644
+index 33fd81b..a8b44d6 100644
 --- a/src/gallium/frontends/glx/xlib/glx_api.c
 +++ b/src/gallium/frontends/glx/xlib/glx_api.c
-@@ -626,16 +626,17 @@ close_display_callback(Display *dpy, XExtCodes *codes)
-  * Look for the named extension on given display and return a pointer
-  * to the _XExtension data, or NULL if extension not found.
-  */
--static _XExtension *
-+static Bool
- lookup_extension(Display *dpy, const char *extName)
- {
--   _XExtension *ext;
--   for (ext = dpy->ext_procs; ext; ext = ext->next) {
--      if (ext->name && strcmp(ext->name, extName) == 0) {
--         return ext;
-+   int ext_len = 0;
-+   char **exts = XListExtensions(dpy, &ext_len);
-+   for (int ext = 0; ext < ext_len; ++ext) {
-+      if (exts[ext] && strcmp(exts[ext], extName) == 0) {
-+         return True;
-       }
-    }
--   return NULL;
-+   return False;
+@@ -621,7 +621,7 @@ close_display_callback(Display *dpy, XExtCodes *codes)
+    return 0;
  }
  
+-
++#ifndef _NANOX_XLIBINT_H_
+ /**
+  * Look for the named extension on given display and return a pointer
+  * to the _XExtension data, or NULL if extension not found.
+@@ -637,6 +637,7 @@ lookup_extension(Display *dpy, const char *extName)
+    }
+    return NULL;
+ }
++#endif
  
-@@ -649,8 +650,13 @@ register_with_display(Display *dpy)
+ 
+ /**
+@@ -646,6 +647,7 @@ lookup_extension(Display *dpy, const char *extName)
+ static void
+ register_with_display(Display *dpy)
+ {
++#ifndef _NANOX_XLIBINT_H_
     const char *extName = "MesaGLX";
     _XExtension *ext;
  
--   ext = lookup_extension(dpy, extName);
--   if (!ext) {
-+   // microwindows does not currently support extensions and
-+   // this code assumes that it does to the extent of using
-+   // ext_procs which is an implementation detail of xorg xlib
-+   // I have modified lookup_extension to work correctly but
-+   // the rest of this still fails.
-+   const char *vendor = ServerVendor(dpy);
-+   if (strcmp(vendor, "CSET") && !lookup_extension(dpy, extName)) {
-       XExtCodes *c = XAddExtension(dpy);
-       ext = dpy->ext_procs;  /* new extension is at head of list */
-       assert(c->extension == ext->codes.extension);
+@@ -658,6 +660,7 @@ register_with_display(Display *dpy)
+       ext->name = strdup(extName);
+       ext->close_display = close_display_callback;
+    }
++#endif
+ }
+ 
+ 
 diff --git a/src/gallium/frontends/glx/xlib/meson.build b/src/gallium/frontends/glx/xlib/meson.build
 index eaf8451..70c0d8c 100644
 --- a/src/gallium/frontends/glx/xlib/meson.build

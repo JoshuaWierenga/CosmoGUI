@@ -468,3 +468,109 @@ index 3f4f009..61f782a 100644
  #include "fb.h"
  #include "genmem.h"
  
+diff --git a/src/nx11/X11-local/X11/Xlib.h b/src/nx11/X11-local/X11/Xlib.h
+index a7c8e89..f9181ee 100644
+--- a/src/nx11/X11-local/X11/Xlib.h
++++ b/src/nx11/X11-local/X11/Xlib.h
+@@ -945,6 +945,7 @@ typedef struct {
+ 	int count;		/* defines range of change w. first_keycode*/
+ } XMappingEvent;
+ 
++#define X_Error 0
+ typedef struct {
+ 	int type;
+ 	Display *display;	/* Display the event was read from */
+diff --git a/src/nx11/X11-local/X11/Xlibint.h b/src/nx11/X11-local/X11/Xlibint.h
+new file mode 100644
+index 0000000..07b7317
+--- /dev/null
++++ b/src/nx11/X11-local/X11/Xlibint.h
+@@ -0,0 +1,12 @@
++#ifndef _XLIBINT_H_
++#define _XLIBINT_H_
++#define _NANOX_XLIBINT_H_
++
++// Copied from nxlib.h
++#define Xmalloc(size) malloc((size))
++#define Xfree(ptr)    free((ptr))
++
++#define _XLockMutex(lock)
++#define _XUnlockMutex(lock)
++
++#endif /* _XLIBINT_H_ */
+diff --git a/src/nx11/X11-local/X11/Xmd.h b/src/nx11/X11-local/X11/Xmd.h
+new file mode 100644
+index 0000000..c7370d2
+--- /dev/null
++++ b/src/nx11/X11-local/X11/Xmd.h
+@@ -0,0 +1,70 @@
++/***********************************************************
++
++Copyright 1987, 1998  The Open Group
++
++Permission to use, copy, modify, distribute, and sell this software and its
++documentation for any purpose is hereby granted without fee, provided that
++the above copyright notice appear in all copies and that both that
++copyright notice and this permission notice appear in supporting
++documentation.
++
++The above copyright notice and this permission notice shall be included in
++all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++OPEN GROUP BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
++AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
++CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++
++Except as contained in this notice, the name of The Open Group shall not be
++used in advertising or otherwise to promote the sale, use or other dealings
++in this Software without prior written authorization from The Open Group.
++
++
++Copyright 1987 by Digital Equipment Corporation, Maynard, Massachusetts.
++
++                        All Rights Reserved
++
++Permission to use, copy, modify, and distribute this software and its
++documentation for any purpose and without fee is hereby granted,
++provided that the above copyright notice appear in all copies and that
++both that copyright notice and this permission notice appear in
++supporting documentation, and that the name of Digital not be
++used in advertising or publicity pertaining to distribution of the
++software without specific, written prior permission.
++
++DIGITAL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
++ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
++DIGITAL BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR
++ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
++WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
++ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
++SOFTWARE.
++
++******************************************************************/
++#ifndef XMD_H
++# define XMD_H 1
++/*
++ *  Xmd.h: MACHINE DEPENDENT DECLARATIONS.
++ */
++
++# ifdef LONG64
++typedef int INT32;
++# else
++typedef long INT32;
++# endif
++
++# ifdef LONG64
++typedef unsigned int CARD32;
++# else
++typedef unsigned long CARD32;
++# endif
++typedef unsigned short CARD16;
++typedef unsigned char  CARD8;
++
++typedef CARD8		BYTE;
++typedef CARD8		BOOL;
++
++#endif /* XMD_H */
