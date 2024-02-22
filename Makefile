@@ -24,12 +24,14 @@ x86_64MINGWOUTPUT = $(OUTPUT)/x86_64-pc-windows-gnu/
 OUTPUT ?= output/
 GENERATED ?= src/generated/
 
-.PHONY: build clean
+.PHONY: build clean distclean
 
 build: raylibbuild swrastbuild
 
 clean: raylibclean swrastclean
 	rm -rf $(OUTPUT)/
+
+distclean: clean swrastdistclean
 
 %/:
 	mkdir -p $@

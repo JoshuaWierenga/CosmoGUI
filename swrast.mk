@@ -1,10 +1,11 @@
 # TODO: Fix linux build needing nano-X server to be a seperate program, currently LINK_APP_INTO_SERVER causes crashes
 # TODO: Add dos support
 # TODO: Remove need for nx11.pc, may not be possible as my patch for mesa ensures it ends up as a requirement in gl.pc
-# TODO: Use actual artifacts for all BUILT variables
+# TODO: Allow rebuilding submodules with changes, stage patch changes and then check for unstaged changes?
+# TODO: Only apply patch if submodule is clean
 # TODO: Prevent make from building linux nano-X before building windows version
 
-.PHONY: swrastmingwbuild swrastglibcbuild swrastbuild nanoxclean swrastglibcclean swrastmingwclean swrastclean
+.PHONY: swrastmingwbuild swrastglibcbuild swrastbuild nanoxclean swrastglibcclean swrastmingwclean swrastclean swrastdistclean
 
 XORGPROTO = third_party/xorgproto/
 NANOX = third_party/microwindows/
@@ -48,6 +49,18 @@ swrastmingwclean: nanoxclean
 	[ ! -e $(MESADEMOSMINGWBUILD) ] || rm -rf $(MESADEMOSMINGWBUILD)
 
 swrastclean: swrastglibcclean swrastmingwclean
+
+swrastdistclean:
+	[ ! -e $(XORGPROTO)/meson.build ] || cd $(XORGPROTO) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(XORGPROTO)/meson.build ] || git submodule update $(XORGPROTO)
+	[ ! -e $(NANOXSRC) ] || cd $(NANOX) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(NANOXSRC) ] || git submodule update $(NANOX)
+	[ ! -e $(MESA)/meson.build ] || cd $(MESA) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(MESA)/meson.build ] || git submodule update $(MESA)
+	[ ! -e $(GLU)/meson.build ] || cd $(GLU) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(GLU)/meson.build ] || git submodule update $(GLU)
+	[ ! -e $(MESADEMOS)/meson.build ] || cd $(MESADEMOS) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(MESADEMOS)/meson.build ] || git submodule update $(MESADEMOS)
 
 $(XORGPROTOMINGWBUILT): | $(x86_64MINGWOUTPUT)/include/GL/
 	[ -e $(XORGPROTO)/meson.build ] || git submodule update --init $(XORGPROTO)
