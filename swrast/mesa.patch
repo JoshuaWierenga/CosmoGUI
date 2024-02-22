@@ -147,7 +147,7 @@ index e7dde65..0dc7224 100644
  elif with_gallium_drisw_kms
    files_libgalliumvlwinsys += files('vl/vl_winsys_dri_vgem.c')
 diff --git a/src/gallium/frontends/glx/xlib/glx_api.c b/src/gallium/frontends/glx/xlib/glx_api.c
-index 33fd81b..a8b44d6 100644
+index 33fd81b..ecf3b71 100644
 --- a/src/gallium/frontends/glx/xlib/glx_api.c
 +++ b/src/gallium/frontends/glx/xlib/glx_api.c
 @@ -621,7 +621,7 @@ close_display_callback(Display *dpy, XExtCodes *codes)
@@ -167,15 +167,20 @@ index 33fd81b..a8b44d6 100644
  
  
  /**
-@@ -646,6 +647,7 @@ lookup_extension(Display *dpy, const char *extName)
+@@ -646,6 +647,12 @@ lookup_extension(Display *dpy, const char *extName)
  static void
  register_with_display(Display *dpy)
  {
++   const char *vendor = ServerVendor(dpy);
++   if (!strcmp(vendor, "CSET")) {
++      return;
++   }
++
 +#ifndef _NANOX_XLIBINT_H_
     const char *extName = "MesaGLX";
     _XExtension *ext;
  
-@@ -658,6 +660,7 @@ register_with_display(Display *dpy)
+@@ -658,6 +665,7 @@ register_with_display(Display *dpy)
        ext->name = strdup(extName);
        ext->close_display = close_display_callback;
     }
