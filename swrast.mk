@@ -2,7 +2,6 @@
 # TODO: Add dos support
 # TODO: Remove need for nx11.pc, may not be possible as my patch for mesa ensures it ends up as a requirement in gl.pc
 # TODO: Allow rebuilding submodules with changes, stage patch changes and then check for unstaged changes?
-# TODO: Prevent make from building linux nano-X before building windows version
 
 .PHONY: swrastmingwbuild swrastglibcbuild swrastbuild nanoxclean swrastglibcclean swrastmingwclean swrastclean swrastdistclean
 
@@ -65,6 +64,16 @@ $(XORGPROTOMINGWBUILT): | $(x86_64MINGWOUTPUT)/include/GL/
 	[ -e $(XORGPROTO)/meson.build ] || git submodule update --init $(XORGPROTO)
 	cp $(XORGPROTO)/include/GL/*.h $(x86_64MINGWOUTPUT)/include/GL/
 
+# Prevent building both nano-X targets at the same time since they build in tree
+fixnanoxparallel =
+ifeq ($(MAKECMDGOALS),)
+fixnanoxparallel = yes
+endif
+ifneq ($(filter-out build swrastbuild swrastglibcbuild $(NANOXGLIBCBUILT) $(MESAGLIBCBUILT) $(GLUGLIBCBUILT) $(MESADEMOSGLIBCBUILT),$(MAKECMDGOALS)),$(MAKECMDGOALS))
+fixnanoxparallel = yes
+endif
+
+# The unstaged status check is from https://stackoverflow.com/a/62768943
 $(NANOXGLIBCBUILT) : | nanoxclean $(x86_64GLIBCOUTPUT)/lib/pkgconfig/
 	[ -e $(NANOXSRC) ] || git submodule update --init $(NANOX)
 	[ -n "$$(cd $(NANOX) && git status --porcelain=v1 2>/dev/null)" ] || git apply --directory=$(NANOX) swrast/microwindows.patch
@@ -72,8 +81,7 @@ $(NANOXGLIBCBUILT) : | nanoxclean $(x86_64GLIBCOUTPUT)/lib/pkgconfig/
 	$(MAKE) -C $(NANOXSRC) install INSTALL_PREFIX=$(PWD)/$(x86_64GLIBCOUTPUT) INSTALL_OWNER1= INSTALL_OWNER2=
 	sed 's#@PREFIX@#$(PWD)/$(x86_64GLIBCOUTPUT)#' swrast/nx11.pc.in > $(x86_64GLIBCOUTPUT)/lib/pkgconfig/nx11.pc
 
-# This does not actually depend on the glibc build but both build in tree and so cannot run at once
-$(NANOXMINGWBUILT): | nanoxclean $(NANOXGLIBCBUILT) $(x86_64MINGWOUTPUT)/include/ $(x86_64MINGWOUTPUT)/lib/pkgconfig/
+$(NANOXMINGWBUILT): | nanoxclean $(if $(filter $(fixnanoxparallel),yes), $(NANOXGLIBCBUILT)) $(x86_64MINGWOUTPUT)/include/ $(x86_64MINGWOUTPUT)/lib/pkgconfig/
 	[ -e $(NANOXSRC) ] || git submodule update --init $(NANOX)
 	[ -n "$$(cd $(NANOX) && git status --porcelain=v1 2>/dev/null)" ] || git apply --directory=$(NANOX) swrast/microwindows.patch
 	$(MAKE) -C $(NANOXSRC) -f Makefile_nr ARCH=WIN32MINGW
