@@ -6,7 +6,7 @@
 # TODO: Move rebuild checks from shell to make
 
 .PHONY: swrastmingwbuild swrastglibcbuild swrastbuild nanoxclean swrastglibcclean swrastmingwclean swrastclean swrastdistclean
-.PHONY: nanoxglibc mesaglibc gluglibc mesademosglibc
+.PHONY: nanoxsetup nanoxglibc mesaglibc gluglibc mesademosglibc
 
 XORGPROTO = third_party/xorgproto/
 NANOX = third_party/microwindows/
@@ -22,7 +22,6 @@ MESADEMOSGLIBCBUILD = $(MESADEMOS)/buildglibc/
 MESADEMOSMINGWBUILD = $(MESADEMOS)/buildmingw/
 
 XORGPROTOMINGWBUILT = $(x86_64MINGWOUTPUT)/include/GL/glxproto.h
-NANOXMINGWBUILT = $(x86_64MINGWOUTPUT)/lib/libNX11.a
 MESAMINGWBUILT = $(MESAMINGWBUILD)/meson-logs/install-log.txt
 MESADEMOSMINGWBUILT = $(MESADEMOSMINGWBUILD)/meson-logs/install-log.txt
 
@@ -50,15 +49,15 @@ swrastclean: swrastglibcclean swrastmingwclean
 
 swrastdistclean:
 	rm swrast/*.commitid || true
-	[ ! -e $(XORGPROTO)/meson.build ] || cd $(XORGPROTO) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(XORGPROTO)/meson.build ] || { cd $(XORGPROTO) && { git reset --hard; git clean -dfx; } }
 	[ ! -e $(XORGPROTO)/meson.build ] || git submodule update $(XORGPROTO)
-	[ ! -e $(NANOXSRC) ] || cd $(NANOX) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(NANOXSRC) ] || { cd $(NANOX) && { git reset --hard; git clean -dfx; } }
 	[ ! -e $(NANOXSRC) ] || git submodule update $(NANOX)
-	[ ! -e $(MESA)/meson.build ] || cd $(MESA) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(MESA)/meson.build ] || { cd $(MESA) && { git reset --hard; git clean -dfx; } }
 	[ ! -e $(MESA)/meson.build ] || git submodule update $(MESA)
-	[ ! -e $(GLU)/meson.build ] || cd $(GLU) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(GLU)/meson.build ] || { cd $(GLU) && { git reset --hard; git clean -dfx; } }
 	[ ! -e $(GLU)/meson.build ] || git submodule update $(GLU)
-	[ ! -e $(MESADEMOS)/meson.build ] || cd $(MESADEMOS) && { git reset --hard; git clean -dfx; }
+	[ ! -e $(MESADEMOS)/meson.build ] || { cd $(MESADEMOS) && { git reset --hard; git clean -dfx; } }
 	[ ! -e $(MESADEMOS)/meson.build ] || git submodule update $(MESADEMOS)
 
 
@@ -77,7 +76,7 @@ $(XORGPROTOMINGWBUILT): | $(x86_64MINGWOUTPUT)/include/GL/
 	cp $(XORGPROTO)/include/GL/*.h $(x86_64MINGWOUTPUT)/include/GL/
 
 # The unstaged status check is from https://stackoverflow.com/a/62768943
-nanoxglibc: | $(x86_64GLIBCOUTPUT)/lib/pkgconfig/
+nanoxsetup:
 	[ -d $(NANOXSRC) ] || git submodule update --init $(NANOX)
 	cd $(NANOX);                                                         \
 	if [ -z "$$(git status --porcelain=v1 2>/dev/null)" ]; then          \
@@ -87,6 +86,8 @@ nanoxglibc: | $(x86_64GLIBCOUTPUT)/lib/pkgconfig/
 	  git rev-parse --verify HEAD > $(PWD)/swrast/microwindows.commitid; \
 	  git reset --soft HEAD~1;                                           \
 	fi
+
+nanoxglibc: | nanoxsetup $(x86_64GLIBCOUTPUT)/lib/pkgconfig/
 	if [ ! -f swrast/microwindows.built ] || [ "$$(cat swrast/microwindows.built)" != "glibc" ]; then \
 	  $(MAKE) -C $(NANOXSRC) clean;                                                                   \
 	  $(MAKE) -C $(NANOXSRC) -f Makefile_nr ARCH=WIN32MINGW clean;                                    \
@@ -100,13 +101,20 @@ nanoxglibc: | $(x86_64GLIBCOUTPUT)/lib/pkgconfig/
 	  echo glibc > swrast/microwindows.built;                                                                       \
 	fi
 
-$(NANOXMINGWBUILT): | nanoxclean $(if $(filter $(fixnanoxparallel),yes), nanoxglibc) $(x86_64MINGWOUTPUT)/include/ $(x86_64MINGWOUTPUT)/lib/pkgconfig/
-	[ -e $(NANOXSRC) ] || git submodule update --init $(NANOX)
-	[ -n "$$(cd $(NANOX) && git status --porcelain=v1 2>/dev/null)" ] || git apply --directory=$(NANOX) swrast/microwindows.patch
-	$(MAKE) -C $(NANOXSRC) -f Makefile_nr ARCH=WIN32MINGW
-	cp -r $(NANOXSRC)/nx11/X11-local/X11/ $(x86_64MINGWOUTPUT)/include/
-	cp $(NANOXSRC)/lib/*.a $(x86_64MINGWOUTPUT)/lib/
-	sed 's#@PREFIX@#$(PWD)/$(x86_64MINGWOUTPUT)#' swrast/nx11.pc.in > $(x86_64MINGWOUTPUT)/lib/pkgconfig/nx11.pc
+nanoxmingw: | nanoxsetup $(if $(filter $(fixnanoxparallel),yes), nanoxglibc) $(x86_64MINGWOUTPUT)/include/ $(x86_64MINGWOUTPUT)/lib/pkgconfig/
+	if [ ! -f swrast/microwindows.built ] || [ "$$(cat swrast/microwindows.built)" != "mingw" ]; then \
+	  $(MAKE) -C $(NANOXSRC) clean;                                                                   \
+	  $(MAKE) -C $(NANOXSRC) -f Makefile_nr ARCH=WIN32MINGW clean;                                    \
+	fi
+	if [ ! -f swrast/microwindows.built ] || [ "$$(cat swrast/microwindows.built)" != "mingw" ] ||                  \
+	    [ -n "$$(cd $(NANOX) && < $(PWD)/swrast/microwindows.commitid git diff)" ] ||                               \
+	    [ -n "$$(cd $(NANOX) && git ls-files --others --exclude-standard)" ] ; then                                 \
+	  $(MAKE) -C $(NANOXSRC) -f Makefile_nr ARCH=WIN32MINGW;                                                        \
+	  cp -r $(NANOXSRC)/nx11/X11-local/X11/ $(x86_64MINGWOUTPUT)/include/;                                          \
+	  cp $(NANOXSRC)/lib/*.a $(x86_64MINGWOUTPUT)/lib/;                                                             \
+	  sed 's#@PREFIX@#$(PWD)/$(x86_64MINGWOUTPUT)#' swrast/nx11.pc.in > $(x86_64MINGWOUTPUT)/lib/pkgconfig/nx11.pc; \
+	  echo mingw > swrast/microwindows.built;                                                                       \
+	fi
 
 mesaglibc: nanoxglibc
 	[ -e $(MESA)/meson.build ] || git submodule update --init $(MESA)
@@ -127,7 +135,7 @@ mesaglibc: nanoxglibc
 	  meson install -C $(MESAGLIBCBUILD); \
 	fi
 
-$(MESAMINGWBUILT): $(XORGPROTOMINGWBUILT) $(NANOXMINGWBUILT) | $(x86_64MINGWOUTPUT)/include/GL/
+$(MESAMINGWBUILT): $(XORGPROTOMINGWBUILT) nanoxmingw | $(x86_64MINGWOUTPUT)/include/GL/
 	[ -e $(MESA)/meson.build ] || git submodule update --init $(MESA)
 	[ -n "$$(cd $(MESA) && git status --porcelain=v1 2>/dev/null)" ] || git apply --directory=$(MESA) swrast/mesa.patch
 	[ -e $(MESAMINGWBUILD) ] || PKG_CONFIG_PATH=$(x86_64MINGWOUTPUT)/lib/pkgconfig/ CFLAGS=-I$(PWD)/$(x86_64MINGWOUTPUT)/include meson setup $(MESAMINGWBUILD) $(MESA) -Ddri3=disabled -Degl=disabled -Dgallium-drivers=swrast -Dgles1=disabled -Dgles2=disabled -Dglx=nxlib -Dosmesa=false -Dplatforms=x11 -Dshared-glapi=disabled -Dvalgrind=disabled -Dvideo-codecs= -Dvulkan-drivers= --cross-file $(MESONMINGWCONFIG) -Ddefault_library=static --prefix=$(PWD)/$(x86_64MINGWOUTPUT)
@@ -139,7 +147,7 @@ gluglibc: mesaglibc
 	if [ ! -d $(GLUGLIBCBUILD) ]; then \
 	  PKG_CONFIG_PATH=$(x86_64GLIBCOUTPUT)/lib/pkgconfig/:$(x86_64GLIBCOUTPUT)/lib/x86_64-linux-gnu/pkgconfig meson setup $(GLUGLIBCBUILD) $(GLU) -Dgl_provider=glvnd -Ddefault_library=static --prefix=$(PWD)/$(x86_64GLIBCOUTPUT); \
 	  meson install -C $(GLUGLIBCBUILD);                                            \
-	elif [ -n "$$(cd $(GLU) && git diff)" ] ||                                      \
+	elif [ -n "$$(cd $(GLU) && git diff $(cd .. && git rev-parse HEAD:./glu))" ] || \
 	      [ -n "$$(cd $(GLU) && git ls-files --others --exclude-standard)" ] ; then \
 	  PKG_CONFIG_PATH=$(x86_64GLIBCOUTPUT)/lib/pkgconfig/:$(x86_64GLIBCOUTPUT)/lib/x86_64-linux-gnu/pkgconfig meson setup $(GLUGLIBCBUILD) $(GLU) -Dgl_provider=glvnd -Ddefault_library=static --prefix=$(PWD)/$(x86_64GLIBCOUTPUT) --reconfigure; \
 	  meson install -C $(GLUGLIBCBUILD); \

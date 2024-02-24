@@ -1,3 +1,10 @@
+diff --git a/.gitignore b/.gitignore
+index e43b0f9..69e5b77 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1 +1,2 @@
+ .DS_Store
++src/fonts/tools/convbdf
 diff --git a/src/Makefile_nr b/src/Makefile_nr
 index 1057d4c..f0f1857 100644
 --- a/src/Makefile_nr
@@ -482,7 +489,7 @@ index a7c8e89..f9181ee 100644
  	Display *display;	/* Display the event was read from */
 diff --git a/src/nx11/X11-local/X11/Xlibint.h b/src/nx11/X11-local/X11/Xlibint.h
 new file mode 100644
-index 0000000..07b7317
+index 0000000..933d33e
 --- /dev/null
 +++ b/src/nx11/X11-local/X11/Xlibint.h
 @@ -0,0 +1,12 @@
@@ -500,7 +507,7 @@ index 0000000..07b7317
 +#endif /* _XLIBINT_H_ */
 diff --git a/src/nx11/X11-local/X11/Xmd.h b/src/nx11/X11-local/X11/Xmd.h
 new file mode 100644
-index 0000000..c7370d2
+index 0000000..d2616d3
 --- /dev/null
 +++ b/src/nx11/X11-local/X11/Xmd.h
 @@ -0,0 +1,70 @@

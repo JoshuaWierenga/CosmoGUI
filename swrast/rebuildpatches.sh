@@ -1,9 +1,8 @@
 #! /bin/sh
 (
   cd third_party/microwindows || exit
-  git diff --abbrev=7 > ../../swrast/microwindows.patch
-  git diff --abbrev=7 --no-index /dev/null src/nx11/X11-local/X11/Xlibint.h >> ../../swrast/microwindows.patch
-  git diff --abbrev=7 --no-index /dev/null src/nx11/X11-local/X11/Xmd.h >> ../../swrast/microwindows.patch
+  git add -N src/nx11/X11-local/X11/Xlibint.h src/nx11/X11-local/X11/Xmd.h
+  git diff --abbrev=7 $(cd .. && git rev-parse HEAD:./microwindows) > ../../swrast/microwindows.patch
 )
-(cd third_party/mesa && git diff --abbrev=7 > ../../swrast/mesa.patch)
-(cd third_party/mesademos && git diff --abbrev=7 > ../../swrast/mesademos.patch)
+(cd third_party/mesa && git diff --abbrev=7 $(cd .. && git rev-parse HEAD:./mesa) > ../../swrast/mesa.patch)
+(cd third_party/mesademos && git diff --abbrev=7 $(cd .. && git rev-parse HEAD:./mesademos) > ../../swrast/mesademos.patch)
