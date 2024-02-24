@@ -1,2 +1,4 @@
 output/
 src/generated/
+swrast/microwindows.built
+swrast/*.commitid
